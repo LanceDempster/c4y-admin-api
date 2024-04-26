@@ -23,6 +23,8 @@ userRouter.get('/profile', authUser, UserController.getProfile );
 
 userRouter.get('/', queryValidation(UserSearchSchema), authAdmin, UserController.getAll );
 
+userRouter.get('/active', authAdmin, UserController.getAllActiveCount);
+
 userRouter.get('/:id', authAdmin, UserController.get );
 
 userRouter.post('/create', bodyValidation(UserResgisterSchema), UserController.create );

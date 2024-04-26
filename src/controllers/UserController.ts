@@ -1,25 +1,25 @@
-import { RequestHandler } from "express";
-import { LoginType } from "../schemas/Login";
-import { UserResgister } from "../schemas/UserResgister";
+import {RequestHandler} from "express";
+import {LoginType} from "../schemas/Login";
+import {UserResgister} from "../schemas/UserResgister";
 import UserModel from "../models/UserModel"
-import { compare, hash } from "bcrypt";
-import { User } from "../interfaces/User";
-import { sign, decode } from "jsonwebtoken";
+import {compare, hash} from "bcrypt";
+import {User} from "../interfaces/User";
+import {sign, decode} from "jsonwebtoken";
 import NotFound from "../errors/NotFound";
 import NotAuthorized from "../errors/NotAuthorized";
-import { ForgotPassword } from "../schemas/ForgotPassword";
+import {ForgotPassword} from "../schemas/ForgotPassword";
 import BadRequest from "../errors/BadRequest";
-import { Result } from "../dto/Result";
-import { ResetPassword } from "../schemas/ResetPassword";
-import { UserSearch } from "../schemas/UserSearch";
-import { AccountStatus } from "../enum/AccountStatus";
-import { sendMail } from "../utils/email";
-import { Token } from "../types/Token";
+import {Result} from "../dto/Result";
+import {ResetPassword} from "../schemas/ResetPassword";
+import {UserSearch} from "../schemas/UserSearch";
+import {AccountStatus} from "../enum/AccountStatus";
+import {sendMail} from "../utils/email";
+import {Token} from "../types/Token";
 
 export const login: RequestHandler = async (req, res, next) => {
 
     try {
-        const { email, password }: LoginType = req.body;
+        const {email, password}: LoginType = req.body;
 
         const user = await UserModel.getByEmail(email);
 
@@ -47,9 +47,7 @@ export const login: RequestHandler = async (req, res, next) => {
                 token,
             }
         ));
-    }
-
-    catch (e) {
+    } catch (e) {
         next(e)
     }
 
@@ -98,9 +96,7 @@ export const register: RequestHandler = async (req, res, next) => {
                 token,
             }
         ));
-    }
-
-    catch (e) {
+    } catch (e) {
         next(e);
     }
 
@@ -138,9 +134,7 @@ export const create: RequestHandler = async (req, res, next) => {
                 id: result.id
             }
         ));
-    }
-
-    catch (e) {
+    } catch (e) {
         next(e);
     }
 
@@ -150,7 +144,7 @@ export const forgotPassword: RequestHandler = async (req, res, next) => {
 
     try {
 
-        const { email }: ForgotPassword = req.body;
+        const {email}: ForgotPassword = req.body;
 
         const user = await UserModel.getByEmail(email);
 
@@ -158,7 +152,7 @@ export const forgotPassword: RequestHandler = async (req, res, next) => {
 
         const resetPasswordToken = Math.random().toString(36).substring(2, 20);
 
-        const newUser = await UserModel.updateById(user.id, { resetPasswordToken });
+        const newUser = await UserModel.updateById(user.id, {resetPasswordToken});
 
         //Send Email with token
         await sendMail('zizo.zoom.z0@gmail.com', newUser.email, 'Reset Password', resetPasswordToken);
@@ -167,49 +161,61 @@ export const forgotPassword: RequestHandler = async (req, res, next) => {
             true,
             'Check your email to change your password'
         ))
-    }
-
-    catch (e) {
+    } catch (e) {
         next(e)
     }
 }
 
 export const resetPassword: RequestHandler = async (req, res, next) => {
     try {
-        const { resetPasswordToken, newPassword }: ResetPassword = req.body;
+        const {resetPasswordToken, newPassword}: ResetPassword = req.body;
 
-        const user = await UserModel.getOne({ resetPasswordToken });
+        const user = await UserModel.getOne({resetPasswordToken});
 
         if (!user) return next(new NotFound('User not found or invalid token'));
 
         const newPasswordHash = await hash(newPassword, 10);
 
-        await UserModel.updateById(user.id, { password: newPasswordHash, resetPasswordToken: '', passwordCreateDate: new Date() });
+        await UserModel.updateById(user.id, {
+            password: newPasswordHash,
+            resetPasswordToken: '',
+            passwordCreateDate: new Date()
+        });
 
+        // fixed a typo in successfully
         res.status(200).send(new Result(
             true,
-            'Your password have been changed succesffully!'
+            'Your password have been changed successfully!'
         ))
-    }
-    catch (e) {
+    } catch (e) {
         next(e)
     }
 }
 
+// added a new function to filter users by their activity
+export const getAllActiveCount: RequestHandler = async (req, res, next) => {
+    let data = await UserModel.getTotalActiveUsers();
+
+    res.status(200).send(new Result(
+        true,
+        '',
+        data
+    ))
+}
 export const getAll: RequestHandler = async (req, res, next) => {
 
     try {
         let query = {};
         Object.assign(query, req.query);
-        const { firstName, lastName, email, page }: UserSearch = query;
+        const {firstName, lastName, email, page, orderBy, orderDirection}: UserSearch = query;
 
-        let [users, count] = await UserModel.search({ firstName, lastName, email }, page);
+        let [users, count] = await UserModel.search({firstName, lastName, email}, page, orderBy ?? "id", orderDirection ?? "asc");
 
         // if(count === -1) count = await UserModel.count();
 
         res.status(200).send(new Result(
             true,
-            count+'',
+            count + '',
             users.map((x: User) => {
                 return {
                     ...x,
@@ -220,9 +226,7 @@ export const getAll: RequestHandler = async (req, res, next) => {
             })
         ))
 
-    }
-
-    catch (e) {
+    } catch (e) {
         next(e);
     }
 
@@ -231,7 +235,7 @@ export const getAll: RequestHandler = async (req, res, next) => {
 export const deleteUser: RequestHandler<{ id: string }> = async (req, res, next) => {
     try {
 
-        const { id } = req.params;
+        const {id} = req.params;
 
         const user = await UserModel.getById(~~(+id));
 
@@ -243,8 +247,7 @@ export const deleteUser: RequestHandler<{ id: string }> = async (req, res, next)
             true,
             `User with Id:${id} deleted`
         ));
-    }
-    catch (e) {
+    } catch (e) {
         next(e);
     }
 }
@@ -252,7 +255,7 @@ export const deleteUser: RequestHandler<{ id: string }> = async (req, res, next)
 export const get: RequestHandler<{ id: string }> = async (req, res, next) => {
     try {
 
-        const { id } = req.params;
+        const {id} = req.params;
 
         const user = await UserModel.getById(~~(+id));
 
@@ -264,8 +267,7 @@ export const get: RequestHandler<{ id: string }> = async (req, res, next) => {
             user
         ));
 
-    }
-    catch (e) {
+    } catch (e) {
         next(e);
     }
 }
@@ -273,7 +275,7 @@ export const get: RequestHandler<{ id: string }> = async (req, res, next) => {
 export const update: RequestHandler<{ id: string }> = async (req, res, next) => {
     try {
 
-        const { id } = req.params;
+        const {id} = req.params;
 
         const user = await UserModel.getById(~~(+id));
 
@@ -287,8 +289,7 @@ export const update: RequestHandler<{ id: string }> = async (req, res, next) => 
             newUser
         ))
 
-    }
-    catch (e) {
+    } catch (e) {
         next(e);
     }
 }
@@ -296,13 +297,13 @@ export const update: RequestHandler<{ id: string }> = async (req, res, next) => 
 export const activate: RequestHandler<{ id: string }> = async (req, res, next) => {
     try {
 
-        const { id } = req.params;
+        const {id} = req.params;
 
         const user = await UserModel.getById(~~(+id));
 
         if (!user) return next(new NotFound('No user with this ID'));
 
-        const newUser = await UserModel.updateById(~~(+id), { accountStatus: AccountStatus.ACTIVE });
+        const newUser = await UserModel.updateById(~~(+id), {accountStatus: AccountStatus.ACTIVE});
 
         return res.status(200).send(new Result(
             true,
@@ -310,8 +311,7 @@ export const activate: RequestHandler<{ id: string }> = async (req, res, next) =
             newUser
         ))
 
-    }
-    catch (e) {
+    } catch (e) {
         next(e);
     }
 }
@@ -319,13 +319,13 @@ export const activate: RequestHandler<{ id: string }> = async (req, res, next) =
 export const disable: RequestHandler<{ id: string }> = async (req, res, next) => {
     try {
 
-        const { id } = req.params;
+        const {id} = req.params;
 
         const user = await UserModel.getById(~~(+id));
 
         if (!user) return next(new NotFound('No user with this ID'));
 
-        const newUser = await UserModel.updateById(~~(+id), { accountStatus: AccountStatus.DISABLED });
+        const newUser = await UserModel.updateById(~~(+id), {accountStatus: AccountStatus.DISABLED});
 
         return res.status(200).send(new Result(
             true,
@@ -333,8 +333,7 @@ export const disable: RequestHandler<{ id: string }> = async (req, res, next) =>
             newUser
         ))
 
-    }
-    catch (e) {
+    } catch (e) {
         next(e);
     }
 }
@@ -349,9 +348,7 @@ export const getProfile: RequestHandler<{ id: string }> = async (req, res, next)
             req.body.user
         ))
 
-    }
-
-    catch (e) {
+    } catch (e) {
         next(e)
     }
 
