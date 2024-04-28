@@ -13,8 +13,9 @@ export const create: RequestHandler = async (req, res, next) => {
 
         const productData = req.body as ProductCreate;
 
-        const product: Product = {
+        const product= {
             id: 0,
+            price: productData.price,
             description: productData.description,
             prodStatus: productData.prodStatus,
         }

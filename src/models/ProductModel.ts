@@ -4,11 +4,13 @@ import { Product } from "../interfaces/Product";
 export const create = async (product: Product) => {
 
     const queryText = 'INSERT INTO products (\
+    price, \
     description, \
     prod_status) \
-    VALUES ($1, $2) RETURNING *'
+    VALUES ($1, $2, $3) RETURNING *'
 
     const { rows } = await query(queryText, [
+        product.price,
         product.description,
         product.prodStatus
     ])
