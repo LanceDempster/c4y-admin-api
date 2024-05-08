@@ -5,6 +5,7 @@ import adminRouter from "./api/AdminRouter";
 import { sendMail } from "./utils/email";
 import cors from 'cors'
 import productRouter from "./api/ProductRouter";
+import countryRouter from "./api/CountryRouter";
 
 console.log('ENV:' + process.env.NODE_ENV);
 
@@ -19,6 +20,7 @@ app.use(json());
 app.use('/user', userRouter);
 app.use('/admin', adminRouter);
 app.use('/product', productRouter);
+app.use('/country', countryRouter);
 
 // Error Hadler Middleware
 app.use(globalErrorHandler);
