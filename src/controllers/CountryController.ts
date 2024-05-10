@@ -9,6 +9,7 @@ import ProductModel from "../models/ProductModel";
 import NotFound from "../errors/NotFound";
 import CountryModal from "../models/CountryModel";
 import countryModel from "../models/CountryModel";
+import {CountryUpdate} from "../schemas/CountryUpdate";
 
 export const getAll: RequestHandler = async (req, res, next) => {
 
@@ -74,7 +75,7 @@ export const update: RequestHandler = async (req, res, next) => {
 
         if (!country) return next(new NotFound('No country with this ID'));
 
-        const newCountry = await CountryModel.updateById(~~(+id), req.body);
+        const newCountry = await CountryModel.updateById(~~(+id),  req.body as CountryUpdate);
 
         return res.status(200).send(new Result(
             true,

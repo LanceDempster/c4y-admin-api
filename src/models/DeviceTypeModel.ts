@@ -1,33 +1,32 @@
 import {query} from "../db";
-import {Country} from "../interfaces/Country";
-import {CountryUpdate} from "../schemas/CountryUpdate";
+import {DeviceType} from "../interfaces/DeviceType";
 
-export const create = async (country: Country) => {
+export const create = async (deviceType: DeviceType) => {
 
-    const queryText = 'INSERT INTO country (\
+    const queryText = 'INSERT INTO device_type (\
     name, \
-    code) \
+    description) \
     VALUES ($1, $2) RETURNING *'
 
     const {rows} = await query(queryText, [
-        country.name,
-        country.code,
+        deviceType.name,
+        deviceType.description,
     ])
 
-    const res: Country = recursiveToCamel(rows[0])
+    const res: DeviceType = recursiveToCamel(rows[0])
     return res;
 
 }
 
 export const getById = async (id: number) => {
-    const {rows} = await query('SELECT * FROM country WHERE id=$1', [id])
+    const {rows} = await query('SELECT * FROM device_type WHERE id=$1', [id])
 
     if (!rows[0]) {
         return undefined
     }
 
-    const country: Country = recursiveToCamel(rows[0]);
-    return country
+    const device_type: DeviceType = recursiveToCamel(rows[0]);
+    return device_type
 }
 
 // export const getAll = async () => {
@@ -45,14 +44,12 @@ export const getById = async (id: number) => {
 // }
 //
 export const deleteById = async (id: number) => {
-    await query('DELETE FROM country WHERE id=$1', [id]);
+    await query('DELETE FROM device_type WHERE id=$1', [id]);
     return
 }
 //
 //
-export const updateById = async (id: number, newProps: CountryUpdate) => {
-
-    console.log(newProps)
+export const updateById = async (id: number, newProps: any) => {
 
     const querys: string[] = [];
     const values: any[] = [];
@@ -60,7 +57,6 @@ export const updateById = async (id: number, newProps: CountryUpdate) => {
     let i = 2;
     for (const [key, value] of Object.entries(newProps)) {
         if (!value) continue;
-
         if (key === "user" || key === "token")
             continue
 
@@ -69,14 +65,14 @@ export const updateById = async (id: number, newProps: CountryUpdate) => {
         i++;
     }
 
-    const queryText = `UPDATE country
+    const queryText = `UPDATE device_type
                        SET ${querys.join(',')}
                        WHERE id = $1 RETURNING *`
 
     const {rows} = await query(queryText, [id, ...values]);
 
-    const country: Country = recursiveToCamel(rows[0])
-    return country;
+    const device_type: DeviceType = recursiveToCamel(rows[0])
+    return device_type;
 }
 //
 // export const getOne = async (props: any) => {
@@ -132,7 +128,7 @@ export const search = async (props: any, page: number = 1) => {
     }
 
     let queryText = `SELECT *, count(*) OVER () AS count
-                     FROM country
+                     FROM device_type
                      WHERE ${querys.join(' OR ')}
                      ORDER BY id ASC
                      LIMIT 10
@@ -147,19 +143,19 @@ export const search = async (props: any, page: number = 1) => {
 
     const {rows} = await query(queryText, [...values, page]);
 
-    return [rows.map(x => recursiveToCamel(x) as Country), rows[0] ? rows[0].count : 0];
+    return [rows.map(x => recursiveToCamel(x) as DeviceType), rows[0] ? rows[0].count : 0];
 }
 
 const count = async () => {
 
-    const {rows} = await query('SELECT COUNT(*) FROM country', []);
+    const {rows} = await query('SELECT COUNT(*) FROM device_type', []);
 
     return rows[0];
 
 }
 
 
-const CountryModal = {
+const DeviceTypeModal = {
     create,
     getById,
     // getAll,
@@ -172,7 +168,7 @@ const CountryModal = {
     count
 }
 
-export default CountryModal;
+export default DeviceTypeModal;
 
 //////////////////////////////////////////////
 const recursiveToCamel = (item: any): any => {
