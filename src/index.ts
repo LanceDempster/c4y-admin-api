@@ -1,12 +1,13 @@
-import express, { json } from "express";
-import { globalErrorHandler } from "./middlewares/handlers/GlobalErrorHandler";
+import express, {json} from "express";
+import {globalErrorHandler} from "./middlewares/handlers/GlobalErrorHandler";
 import userRouter from "./api/UserRouter";
 import adminRouter from "./api/AdminRouter";
-import { sendMail } from "./utils/email";
+import {sendMail} from "./utils/email";
 import cors from 'cors'
 import productRouter from "./api/ProductRouter";
 import countryRouter from "./api/CountryRouter";
 import deviceTypeRouter from "./api/DeviceTypeRouter";
+import gameStatusRouter from "./api/GameStatusRouter";
 
 console.log('ENV:' + process.env.NODE_ENV);
 
@@ -23,6 +24,7 @@ app.use('/admin', adminRouter);
 app.use('/product', productRouter);
 app.use('/country', countryRouter);
 app.use('/device_type', deviceTypeRouter);
+app.use('/game_status', gameStatusRouter);
 
 // Error Hadler Middleware
 app.use(globalErrorHandler);
