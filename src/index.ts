@@ -10,6 +10,7 @@ import deviceTypeRouter from "./api/DeviceTypeRouter";
 import gameStatusRouter from "./api/GameStatusRouter";
 import healthCheckinRouter from "./api/HealthCheckinRouter";
 import lockTypeRouter from "./api/LockTypeRouter";
+import messageRouter from "./api/MessageRouter";
 
 console.log('ENV:' + process.env.NODE_ENV);
 
@@ -31,6 +32,7 @@ app.use('/device_type', deviceTypeRouter);
 app.use('/game_status', gameStatusRouter);
 app.use('/health_checkin', healthCheckinRouter);
 app.use('/lock_type', lockTypeRouter);
+app.use('/message', messageRouter);
 // --------------------------------------------
 
 // Error Hadler Middleware
