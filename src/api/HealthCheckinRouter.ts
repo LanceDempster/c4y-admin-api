@@ -2,7 +2,6 @@ import {Router} from "express";
 import {authAdmin} from "../middlewares/Auth";
 import * as HealthCheckinController from "../controllers/HealthCheckinController";
 import {bodyValidation} from "../middlewares/Validation";
-import {GameStatusUpdateSchema} from "../schemas/GameStatusUpdate";
 import {HealthCheckinCreateSchema} from "../schemas/HealthCheckinCreate";
 import {HealthCheckingUpdateSchema} from "../schemas/HealthCheckinUpdate";
 

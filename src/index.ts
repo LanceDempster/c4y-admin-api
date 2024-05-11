@@ -9,6 +9,7 @@ import countryRouter from "./api/CountryRouter";
 import deviceTypeRouter from "./api/DeviceTypeRouter";
 import gameStatusRouter from "./api/GameStatusRouter";
 import healthCheckinRouter from "./api/HealthCheckinRouter";
+import lockTypeRouter from "./api/LockTypeRouter";
 
 console.log('ENV:' + process.env.NODE_ENV);
 
@@ -23,10 +24,14 @@ app.use(json());
 app.use('/user', userRouter);
 app.use('/admin', adminRouter);
 app.use('/product', productRouter);
+
+// look up tables
 app.use('/country', countryRouter);
 app.use('/device_type', deviceTypeRouter);
 app.use('/game_status', gameStatusRouter);
 app.use('/health_checkin', healthCheckinRouter);
+app.use('/lock_type', lockTypeRouter);
+// --------------------------------------------
 
 // Error Hadler Middleware
 app.use(globalErrorHandler);
