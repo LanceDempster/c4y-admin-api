@@ -6,7 +6,6 @@ import GameStatusModel from "../models/GameStatusModel";
 import {GameStatus} from "../interfaces/GameStatus";
 import {GameStatusCreate} from "../schemas/GameStatusCreate";
 import {GameStatusUpdate} from "../schemas/GameStatusUpdate";
-import GameStatusRouter from "../api/GameStatusRouter";
 
 export const getAll: RequestHandler = async (req, res, next) => {
 
@@ -51,7 +50,7 @@ export const create: RequestHandler = async (req, res, next) => {
 
         return res.status(200).send(new Result(
             true,
-            'Device Type created',
+            'Game Status created',
             {
                 ...result
             }

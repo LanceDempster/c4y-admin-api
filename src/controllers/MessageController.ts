@@ -1,7 +1,5 @@
 import {RequestHandler} from "express";
 import {Result} from "../dto/Result";
-import {LockType} from "../interfaces/LockType";
-import LockTypeModal from "../models/LockTypeModel";
 import NotFound from "../errors/NotFound";
 import {MessageSearch} from "../schemas/MessageSearch";
 import MessageModal from "../models/MessageModel";
@@ -9,8 +7,6 @@ import {MessageCreate} from "../schemas/MessageCreate";
 import {Message} from "../interfaces/Message";
 import MessageModel from "../models/MessageModel";
 import {MessageUpdate, MessageUpdateSchema} from "../schemas/MessageUpdate";
-import messageModel from "../models/MessageModel";
-import messageRouter from "../api/MessageRouter";
 
 export const getAll: RequestHandler = async (req, res, next) => {
 
@@ -21,12 +17,12 @@ export const getAll: RequestHandler = async (req, res, next) => {
 
         let [messages, count] = await MessageModal.search({name, description}, page);
 
-        if (count === -1) count = await LockTypeModal.count();
+        if (count === -1) count = await MessageModel.count();
 
         res.status(200).send(new Result(
             true,
             count + '',
-            messages.map((x: LockType) => {
+            messages.map((x: Message) => {
                 return {
                     ...x,
                 }

@@ -1,11 +1,7 @@
 import {RequestHandler} from "express";
 import {Result} from "../dto/Result";
-import {Country} from "../interfaces/Country";
 import {DeviceTypeSearch} from "../schemas/DeviceTypeSearch";
-import CountryModel from "../models/CountryModel";
-import {CountryCreate} from "../schemas/CountryCreate";
 import NotFound from "../errors/NotFound";
-import CountryModal from "../models/CountryModel";
 import DeviceTypeModel from "../models/DeviceTypeModel";
 import {DeviceTypeCreate} from "../schemas/DeviceTypeCreate";
 import {DeviceType} from "../interfaces/DeviceType";
@@ -22,12 +18,12 @@ export const getAll: RequestHandler = async (req, res, next) => {
 
         let [devicesTypes, count] = await DeviceTypeModel.search({name, description}, page);
 
-        if (count === -1) count = await CountryModel.count();
+        if (count === -1) count = await DeviceTypeModel.count();
 
         res.status(200).send(new Result(
             true,
             count + '',
-            devicesTypes.map((x: Country) => {
+            devicesTypes.map((x: DeviceType) => {
                 return {
                     ...x,
                 }

@@ -6,18 +6,18 @@ import {GameStatusCreateSchema} from "../schemas/GameStatusCreate";
 import {GameStatusUpdateSchema} from "../schemas/GameStatusUpdate";
 
 
-const DeviceTypeRouter = Router();
+const gameStatusRouter = Router();
 
 
-DeviceTypeRouter.get('/', authAdmin, GameStatusController.getAll);
+gameStatusRouter.get('/', authAdmin, GameStatusController.getAll);
 
 // productRouter.get('/:id', authAdmin, ProductController.get );
 
-DeviceTypeRouter.post('/create', authAdmin, bodyValidation(GameStatusCreateSchema), GameStatusController.create);
+gameStatusRouter.post('/create', authAdmin, bodyValidation(GameStatusCreateSchema), GameStatusController.create);
 
-DeviceTypeRouter.put('/:id', authAdmin, bodyValidation(GameStatusUpdateSchema), GameStatusController.update);
+gameStatusRouter.put('/:id', authAdmin, bodyValidation(GameStatusUpdateSchema), GameStatusController.update);
 
-DeviceTypeRouter.delete('/:id', authAdmin, GameStatusController.deleteGameStatus);
+gameStatusRouter.delete('/:id', authAdmin, GameStatusController.deleteGameStatus);
 
 
-export default DeviceTypeRouter;
+export default gameStatusRouter;
