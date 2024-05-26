@@ -6,127 +6,116 @@ import { Product } from "../interfaces/Product";
 import { hash } from "bcrypt";
 import { ProductSearch } from "../schemas/ProductSearch";
 import { ProductCreate } from "../schemas/ProductCreate";
+import productRouter from "../api/ProductRouter";
 
 export const create: RequestHandler = async (req, res, next) => {
+  try {
+    const productData = req.body as ProductCreate;
 
-    try {
+    const product = {
+      id: 0,
+      product_name: productData.product_name,
+      product_code: productData.product_code,
+      price: productData.price,
+      description: productData.description,
+      prodStatus: productData.prodStatus,
+    };
 
-        const productData = req.body as ProductCreate;
+    const result = await ProductModel.create(product);
 
-        const product= {
-            id: 0,
-            price: productData.price,
-            description: productData.description,
-            prodStatus: productData.prodStatus,
-        }
-
-        const result = await ProductModel.create(product)
-
-        return res.status(200).send(new Result(
-            true,
-            'Product created',
-            {
-                ...result
-            }
-        ));
-    }
-
-    catch (e) {
-        next(e);
-    }
-
-}
+    return res.status(200).send(
+      new Result(true, "Product created", {
+        ...result,
+      }),
+    );
+  } catch (e) {
+    next(e);
+  }
+};
 
 export const getAll: RequestHandler = async (req, res, next) => {
+  try {
+    let query = {};
+    Object.assign(query, req.query);
+    const { description, prodStatus, page }: ProductSearch = query;
 
-    try {
-        let query = {};
-        Object.assign(query, req.query);
-        const { description, prodStatus, page }: ProductSearch = query;
+    let [users, count] = await ProductModel.search(
+      { description, prodStatus },
+      page,
+    );
 
-        let [users, count] = await ProductModel.search({ description, prodStatus }, page);
+    // if(count === -1) count = await ProductModel.count();
 
-        // if(count === -1) count = await ProductModel.count();
+    res.status(200).send(
+      new Result(
+        true,
+        count + "",
+        users.map((x: Product) => {
+          return {
+            ...x,
+          };
+        }),
+      ),
+    );
+  } catch (e) {
+    next(e);
+  }
+};
 
-        res.status(200).send(new Result(
-            true,
-            count+'',
-            users.map((x: Product) => {
-                return {
-                    ...x,
-                }
-            })
-        ))
+export const deleteProduct: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    const { id } = req.params;
 
-    }
+    const user = await ProductModel.getById(~~+id);
 
-    catch (e) {
-        next(e);
-    }
+    if (!user) return next(new NotFound("No Product with this ID"));
 
-}
+    await ProductModel.deleteById(user.id);
 
-export const deleteProduct: RequestHandler<{ id: string }> = async (req, res, next) => {
-    try {
-
-        const { id } = req.params;
-
-        const user = await ProductModel.getById(~~(+id));
-
-        if (!user) return next(new NotFound('No Product with this ID'));
-
-        await ProductModel.deleteById(user.id);
-
-        return res.status(200).send(new Result(
-            true,
-            `Product with Id:${id} deleted`
-        ));
-    }
-    catch (e) {
-        next(e);
-    }
-}
+    return res
+      .status(200)
+      .send(new Result(true, `Product with Id:${id} deleted`));
+  } catch (e) {
+    next(e);
+  }
+};
 
 export const get: RequestHandler<{ id: string }> = async (req, res, next) => {
-    try {
+  try {
+    const { id } = req.params;
 
-        const { id } = req.params;
+    const user = await ProductModel.getById(~~+id);
 
-        const user = await ProductModel.getById(~~(+id));
+    if (!user) return next(new NotFound("No Product with this ID"));
 
-        if (!user) return next(new NotFound('No Product with this ID'));
+    return res.status(200).send(new Result(true, "", user));
+  } catch (e) {
+    next(e);
+  }
+};
 
-        return res.status(200).send(new Result(
-            true,
-            '',
-            user
-        ));
+export const update: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    const { id } = req.params;
 
-    }
-    catch (e) {
-        next(e);
-    }
-}
+    const user = await ProductModel.getById(~~+id);
 
-export const update: RequestHandler<{ id: string }> = async (req, res, next) => {
-    try {
+    if (!user) return next(new NotFound("No user with this ID"));
 
-        const { id } = req.params;
+    const newUser = await ProductModel.updateById(~~+id, req.body);
 
-        const user = await ProductModel.getById(~~(+id));
-
-        if (!user) return next(new NotFound('No user with this ID'));
-
-        const newUser = await ProductModel.updateById(~~(+id), req.body);
-
-        return res.status(200).send(new Result(
-            true,
-            "Product updated successfully",
-            newUser
-        ))
-
-    }
-    catch (e) {
-        next(e);
-    }
-}
+    return res
+      .status(200)
+      .send(new Result(true, "Product updated successfully", newUser));
+  } catch (e) {
+    next(e);
+  }
+};

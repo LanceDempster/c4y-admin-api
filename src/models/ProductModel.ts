@@ -3,13 +3,16 @@ import { Product } from "../interfaces/Product";
 
 export const create = async (product: Product) => {
 
-    const queryText = 'INSERT INTO products (\
+    const queryText = 'INSERT INTO product (\
+    product_code, \
+    product_name, \
     price, \
     description, \
     prod_status) \
-    VALUES ($1, $2, $3) RETURNING *'
-
+    VALUES ($1, $2, $3, $4, $5) RETURNING *'
     const { rows } = await query(queryText, [
+        product.product_code,
+        product.product_name,
         product.price,
         product.description,
         product.prodStatus
@@ -21,7 +24,7 @@ export const create = async (product: Product) => {
 }
 
 export const getById = async (id: number) => {
-    const { rows } = await query('SELECT * FROM products WHERE id=$1', [id])
+    const { rows } = await query('SELECT * FROM product WHERE id=$1', [id])
 
     if (!rows[0]) {
         return undefined
@@ -32,12 +35,12 @@ export const getById = async (id: number) => {
 }
 
 export const getAll = async () => {
-    const { rows } = await query('SELECT * FROM products', []);
+    const { rows } = await query('SELECT * FROM product', []);
     return rows.map(x => recursiveToCamel(x) as Product);
 }
 
 export const getByEmail = async (email: string) => {
-    const { rows } = await query('SELECT * FROM products WHERE email = $1', [email]);
+    const { rows } = await query('SELECT * FROM product WHERE email = $1', [email]);
 
     if (!rows[0]) return undefined;
 
@@ -46,7 +49,7 @@ export const getByEmail = async (email: string) => {
 }
 
 export const deleteById = async (id: number) => {
-    await query('DELETE FROM products WHERE id=$1', [id]);
+    await query('DELETE FROM product WHERE id=$1', [id]);
     return
 }
 
@@ -64,9 +67,7 @@ export const updateById = async (id: number, newProps: any) => {
         i++;
     }
 
-    console.log(querys);
-
-    const queryText = `UPDATE products SET ${querys.join(',')} WHERE id = $1 RETURNING *`
+    const queryText = `UPDATE product SET ${querys.join(',')} WHERE id = $1 RETURNING *`
 
     const { rows } = await query(queryText, [id, ...values]);
 
@@ -86,7 +87,7 @@ export const getOne = async (props: any) => {
         i++;
     }
 
-    const queryText = `SELECT * FROM products WHERE ${querys.join(' AND ')}`;
+    const queryText = `SELECT * FROM product WHERE ${querys.join(' AND ')}`;
 
     const { rows } = await query(queryText, [...values]);
 
@@ -106,7 +107,7 @@ export const getMany = async (props: any, page: number) => {
         i++;
     }
 
-    const queryText = `SELECT * FROM products WHERE ${querys.join(' AND ')} \
+    const queryText = `SELECT * FROM product WHERE ${querys.join(' AND ')} \
     LIMIT 10 OFFSET {($${i} - 1) * 10}`;
 
     const { rows } = await query(queryText, [...values, page]);
@@ -126,7 +127,7 @@ export const search = async (props: any, page: number = 1) => {
         i++;
     }
 
-    let queryText = `SELECT *, count(*) OVER() AS count FROM products WHERE ${querys.join(' OR ')} \
+    let queryText = `SELECT *, count(*) OVER() AS count FROM product WHERE ${querys.join(' OR ')} \
     ORDER BY id ASC LIMIT 10 OFFSET (($${i} - 1) * 10)`;
 
     if (values.length === 0) {
@@ -142,7 +143,7 @@ export const search = async (props: any, page: number = 1) => {
 
 const count = async () => {
 
-    const { rows } = await query('SELECT COUNT(*) FROM products', []);
+    const { rows } = await query('SELECT COUNT(*) FROM product', []);
 
     return rows[0];
 
