@@ -1,32 +1,32 @@
 import {query} from "../db";
-import {Message} from "../interfaces/Message";
-import {Rule} from "../interfaces/Rule";
+import {TicketStatus} from "../interfaces/TicketStatus";
 
-export const create = async (rule: Rule) => {
+export const create = async (ticketStatus: TicketStatus) => {
 
-    const queryText = 'INSERT INTO rules(\
+    const queryText = 'INSERT INTO ticket_status(\
     name, \
     description) \
     VALUES ($1, $2) RETURNING *'
 
     const {rows} = await query(queryText, [
-        rule.name,
-        rule.description,
+        ticketStatus.name,
+        ticketStatus.description,
     ])
 
-    const res: Rule = recursiveToCamel(rows[0])
+    const res: TicketStatus = recursiveToCamel(rows[0])
+
     return res;
 }
 
 export const getById = async (id: number) => {
-    const {rows} = await query('SELECT * FROM rules WHERE id=$1', [id])
+    const {rows} = await query('SELECT * FROM ticket_status WHERE id=$1', [id])
 
     if (!rows[0]) {
         return undefined
     }
 
-    const rule: Rule = recursiveToCamel(rows[0]);
-    return rule
+    const ticketStatus: TicketStatus = recursiveToCamel(rows[0]);
+    return ticketStatus; 
 }
 
 // export const getAll = async () => {
@@ -44,7 +44,7 @@ export const getById = async (id: number) => {
 // }
 
 export const deleteById = async (id: number) => {
-    await query('DELETE FROM rules WHERE id=$1', [id]);
+    await query('DELETE FROM ticket_status WHERE id=$1', [id]);
     return
 }
 
@@ -64,14 +64,14 @@ export const updateById = async (id: number, newProps: any) => {
         i++;
     }
 
-    const queryText = `UPDATE rules
+    const queryText = `UPDATE ticket_status
                        SET ${querys.join(',')}
                        WHERE id = $1 RETURNING *`
 
     const {rows} = await query(queryText, [id, ...values]);
 
-    const rule: Rule = recursiveToCamel(rows[0])
-    return rule;
+    const ticketStatus: TicketStatus = recursiveToCamel(rows[0])
+    return ticketStatus;
 }
 
 // export const getOne = async (props: any) => {
@@ -127,7 +127,7 @@ export const search = async (props: any, page: number = 1) => {
     }
 
     let queryText = `SELECT *, count(*) OVER () AS count
-                     FROM rules
+                     FROM ticket_status
                      WHERE ${querys.join(' OR ')}
                      ORDER BY id ASC
                      LIMIT 10
@@ -142,12 +142,12 @@ export const search = async (props: any, page: number = 1) => {
 
     const {rows} = await query(queryText, [...values, page]);
 
-    return [rows.map(x => recursiveToCamel(x) as Rule), rows[0] ? rows[0].count : 0];
+    return [rows.map(x => recursiveToCamel(x) as TicketStatus), rows[0] ? rows[0].count : 0];
 }
 
 const count = async () => {
 
-    const {rows} = await query('SELECT COUNT(*) FROM rules', []);
+    const {rows} = await query('SELECT COUNT(*) FROM ticket_status', []);
 
     return rows[0];
 

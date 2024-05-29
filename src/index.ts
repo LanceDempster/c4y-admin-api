@@ -5,6 +5,7 @@ import adminRouter from "./api/AdminRouter";
 import {sendMail} from "./utils/email";
 import cors from 'cors'
 import productRouter from "./api/ProductRouter";
+import ticketStatusRouter from "./api/TicketStatusRoutern";
 import countryRouter from "./api/CountryRouter";
 import deviceTypeRouter from "./api/DeviceTypeRouter";
 import gameStatusRouter from "./api/GameStatusRouter";
@@ -27,7 +28,19 @@ app.use(json());
 // Routers Middleware
 app.use('/user', userRouter);
 app.use('/admin', adminRouter);
-app.use('/product', productRouter); // look up tables app.use('/country', countryRouter); app.use('/device_type', deviceTypeRouter); app.use('/game_status', gameStatusRouter); app.use('/health_checkin', healthCheckinRouter);
+app.use('/product', productRouter); 
+
+// tickets 
+app.use('/ticket_status', ticketStatusRouter); 
+
+// --------------------------------------------
+
+
+// look up tables 
+app.use('/country', countryRouter); 
+app.use('/device_type', deviceTypeRouter); 
+app.use('/game_status', gameStatusRouter); 
+app.use('/health_checkin', healthCheckinRouter);
 app.use('/lock_type', lockTypeRouter);
 app.use('/message', messageRouter);
 app.use('/pause_game', pauseGameRouter);
