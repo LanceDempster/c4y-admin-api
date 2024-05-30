@@ -5,7 +5,10 @@ import adminRouter from "./api/AdminRouter";
 import {sendMail} from "./utils/email";
 import cors from 'cors'
 import productRouter from "./api/ProductRouter";
-import ticketStatusRouter from "./api/TicketStatusRoutern";
+
+import ticketStatusRouter from "./api/TicketStatusRouter";
+import ticketPriorityRouter from "./api/TicketPriorityRouter";
+
 import countryRouter from "./api/CountryRouter";
 import deviceTypeRouter from "./api/DeviceTypeRouter";
 import gameStatusRouter from "./api/GameStatusRouter";
@@ -32,6 +35,7 @@ app.use('/product', productRouter);
 
 // tickets 
 app.use('/ticket_status', ticketStatusRouter); 
+app.use('/ticket_priority', ticketPriorityRouter); 
 
 // --------------------------------------------
 

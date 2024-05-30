@@ -17,7 +17,7 @@ ticketStatusRouter.post('/create', authAdmin, bodyValidation(TicketStatusCreateS
 
 ticketStatusRouter.put('/:id', authAdmin, bodyValidation(TicketStatusUpdateSchema), TicketStatusController.update);
 
-ticketStatusRouter.delete('/:id', authAdmin, TicketStatusController.deleteRule);
+ticketStatusRouter.delete('/:id', authAdmin, TicketStatusController.deleteTicketStatus);
 
 
 export default ticketStatusRouter;

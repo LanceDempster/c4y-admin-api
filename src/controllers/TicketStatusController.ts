@@ -87,7 +87,7 @@ export const update: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const deleteRule: RequestHandler<{ id: string }> = async (
+export const deleteTicketStatus: RequestHandler<{ id: string }> = async (
   req,
   res,
   next,
