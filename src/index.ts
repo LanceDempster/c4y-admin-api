@@ -8,6 +8,7 @@ import productRouter from "./api/ProductRouter";
 
 import ticketStatusRouter from "./api/TicketStatusRouter";
 import ticketPriorityRouter from "./api/TicketPriorityRouter";
+import ticketCategoryRouter from "./api/TicketCategoryRouter";
 
 import countryRouter from "./api/CountryRouter";
 import deviceTypeRouter from "./api/DeviceTypeRouter";
@@ -36,6 +37,7 @@ app.use('/product', productRouter);
 // tickets 
 app.use('/ticket_status', ticketStatusRouter); 
 app.use('/ticket_priority', ticketPriorityRouter); 
+app.use('/ticket_category', ticketCategoryRouter); 
 
 // --------------------------------------------
 
