@@ -56,6 +56,7 @@ export const authAdmin = async (req: Request, res: Response, next: NextFunction)
             return next();
         }
         catch (e) {
+					console.log(e)
             return next(new NotAuthorized('Unauthorized'));
         }
 

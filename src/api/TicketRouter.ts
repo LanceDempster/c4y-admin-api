@@ -11,6 +11,8 @@ const ticketRouter = Router();
 
 ticketRouter.get('/', authAdmin, TicketController.getAll);
 
+ticketRouter.get('/get-all-by-status', authAdmin, TicketController.getAllByStatus);
+
 // productRouter.get('/:id', authAdmin, ProductController.get );
 
 ticketRouter.post('/create', authAdmin, bodyValidation(TicketCreateSchema), TicketController.create);

@@ -200,6 +200,12 @@ const count = async () => {
   return rows[0];
 };
 
+const getAllByStatus = async() => {
+  const { rows } = await query(`select ticket_status."name", count(tickets.id) from tickets right join ticket_status on tickets.ticket_status = ticket_status.id  group by ticket_status."name"`, []);
+
+  return rows;
+};
+
 const TicketModal = {
   create,
   // getById,
@@ -209,6 +215,7 @@ const TicketModal = {
   // updateById,
   // deleteById,
   // getByEmail,
+	getAllByStatus,
   search,
   count,
 };

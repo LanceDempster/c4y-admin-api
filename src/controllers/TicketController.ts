@@ -8,6 +8,7 @@ import TicketModel from "../models/TicketModel";
 import { Ticket } from "../interfaces/Ticket";
 import UserModel from "../models/UserModel";
 import { TicketCreate } from "../schemas/TicketCreate";
+import TicketModal from "../models/TicketModel";
 // import { TicketStatusCreate } from "../schemas/TicketStatusCreate";
 // import { TicketStatusUpdate } from "../schemas/TicketStatusUpdate";
 
@@ -52,6 +53,16 @@ export const getAll: RequestHandler = async (req, res, next) => {
         }),
       ),
     );
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getAllByStatus: RequestHandler = async (req, res, next) => {
+  try {
+    let response = await TicketModal.getAllByStatus();
+
+    res.status(200).send(new Result(true, '', response));
   } catch (e) {
     next(e);
   }
