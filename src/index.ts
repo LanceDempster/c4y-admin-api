@@ -36,6 +36,8 @@ app.use('/product', productRouter);
 
 // tickets 
 app.use('/ticket_status', ticketStatusRouter); 
+
+app.use('/ticket_status', ticketStatusRouter); 
 app.use('/ticket_priority', ticketPriorityRouter); 
 app.use('/ticket_category', ticketCategoryRouter); 
 

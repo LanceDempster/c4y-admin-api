@@ -51,30 +51,29 @@ export const deleteById = async (id: number) => {
 };
 
 export const updateById = async (id: number, newProps: any) => {
+  const querys: string[] = [];
+  const values: any[] = [];
 
-    const querys: string[] = [];
-    const values: any[] = [];
+  let i = 2;
+  for (const [key, value] of Object.entries(newProps)) {
+    if (value === "") {
+    } else if (!value) continue;
+    if (key === "user" || key === "token") continue;
 
-    let i = 2;
-    for (const [key, value] of Object.entries(newProps)) {
-        if (!value) continue;
-        if (key === "user" || key === "token")
-            continue
+    querys.push(camleToSnake(key) + "=" + "$" + i);
+    values.push(value);
+    i++;
+  }
 
-        querys.push(camleToSnake(key) + '=' + '$' + i);
-        values.push(value);
-        i++;
-    }
+  const queryText = `UPDATE ticket_category
+                       SET ${querys.join(",")}
+                       WHERE id = $1 RETURNING *`;
 
-    const queryText = `UPDATE ticket_category
-                       SET ${querys.join(',')}
-                       WHERE id = $1 RETURNING *`
+  const { rows } = await query(queryText, [id, ...values]);
 
-    const {rows} = await query(queryText, [id, ...values]);
-
-    const ticketCategory: TicketCategory = recursiveToCamel(rows[0])
-    return ticketCategory;
-}
+  const ticketCategory: TicketCategory = recursiveToCamel(rows[0]);
+  return ticketCategory;
+};
 
 // export const getOne = async (props: any) => {
 //     const querys: string[] = [];

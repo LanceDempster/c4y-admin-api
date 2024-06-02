@@ -48,9 +48,9 @@ export const getById = async (id: number) => {
 // }
 
 export const deleteById = async (id: number) => {
-    await query('DELETE FROM ticket_priority WHERE id=$1', [id]);
-    return
-}
+  await query("DELETE FROM ticket_priority WHERE id=$1", [id]);
+  return;
+};
 
 export const updateById = async (id: number, newProps: any) => {
   const querys: string[] = [];
@@ -122,7 +122,9 @@ export const search = async (props: any, page: number = 1) => {
 
   let i = 1;
   for (const [key, value] of Object.entries(props)) {
-    if (!value) continue;
+    if (value === "") {
+    } else if (!value) continue;
+
     querys.push(camleToSnake(key) + " LIKE " + "$" + i);
     values.push("%" + value);
     i++;

@@ -55,7 +55,10 @@ export const updateById = async (id: number, newProps: any) => {
 
     let i = 2;
     for (const [key, value] of Object.entries(newProps)) {
-        if (!value) continue;
+				if (value === ""){
+
+				} else if (!value) continue;
+
         if (key === "user" || key === "token")
             continue
 
