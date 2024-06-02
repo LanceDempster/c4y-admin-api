@@ -19,6 +19,7 @@ import messageRouter from "./api/MessageRouter";
 import pauseGameRouter from "./api/PauseGameRouter";
 import ruleRouter from "./api/RuleRouter";
 import StoryStatusRouter from "./api/StoryStatusRouter";
+import ticketRouter from "./api/TicketRouter";
 
 console.log('ENV:' + process.env.NODE_ENV);
 
@@ -35,7 +36,7 @@ app.use('/admin', adminRouter);
 app.use('/product', productRouter); 
 
 // tickets 
-app.use('/ticket_status', ticketStatusRouter); 
+app.use('/ticket', ticketRouter); 
 
 app.use('/ticket_status', ticketStatusRouter); 
 app.use('/ticket_priority', ticketPriorityRouter); 

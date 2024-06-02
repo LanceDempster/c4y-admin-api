@@ -1,13 +1,13 @@
 import { RequestHandler } from "express";
 import { Result } from "../dto/Result";
-import {
-  TicketSearch,
-} from "../schemas/TicketSearch";
+import { TicketSearch } from "../schemas/TicketSearch";
 import TicketModel from "../models/TicketModel";
 // import { RuleCreate } from "../schemas/RuleCreate";
 // import NotFound from "../errors/NotFound";
 // import { RuleUpdate } from "../schemas/RuleUpdate";
 import { Ticket } from "../interfaces/Ticket";
+import UserModel from "../models/UserModel";
+import { TicketCreate } from "../schemas/TicketCreate";
 // import { TicketStatusCreate } from "../schemas/TicketStatusCreate";
 // import { TicketStatusUpdate } from "../schemas/TicketStatusUpdate";
 
@@ -15,20 +15,37 @@ export const getAll: RequestHandler = async (req, res, next) => {
   try {
     let query = {};
     Object.assign(query, req.query);
-    const { name, description, page }: TicketStatusSearch = query;
+    const {
+      userId,
+      userEmail,
+      title,
+      description,
+      categoryId,
+      statusId,
+      priorityId,
+      page,
+    }: TicketSearch = query;
 
-    let [ticketStatuses, count] = await TicketStatusModel.search(
-      { name, description },
+    let [tickets, count] = await TicketModel.search(
+      {
+        userId,
+        userEmail,
+        title,
+        description,
+        categoryId,
+        statusId,
+        priorityId,
+      },
       page,
     );
 
-    if (count === -1) count = await TicketStatusModel.count();
+    if (count === -1) count = await TicketModel.count();
 
     res.status(200).send(
       new Result(
         true,
         count + "",
-        ticketStatuses.map((x: TicketStatus) => {
+        tickets.map((x: Ticket) => {
           return {
             ...x,
           };
@@ -40,27 +57,34 @@ export const getAll: RequestHandler = async (req, res, next) => {
   }
 };
 
-// export const create: RequestHandler = async (req, res, next) => {
-//   try {
-//     const ticketStatusData = req.body as TicketStatusCreate;
+export const create: RequestHandler = async (req, res, next) => {
+  try {
+    const ticketData = req.body as TicketCreate;
 
-//     const ticketStatus: TicketStatus = {
-//       id: 0,
-//       name: ticketStatusData.name,
-//       description: ticketStatusData.description,
-//     };
+    const ticket: Ticket = {
+      id: 0,
+      userId: ticketData.userId,
+      staffId: ticketData.staffId,
+      staffName: ticketData.staffName,
+      userEmail: ticketData.userEmail,
+      title: ticketData.title,
+      description: ticketData.description,
+      categoryId: ticketData.categoryId,
+      priorityId: ticketData.priorityId,
+      statusId: ticketData.statusId,
+    };
 
-//     const result = await TicketStatusModel.create(ticketStatus);
+    const result = await TicketModel.create(ticket);
 
-//     return res.status(200).send(
-//       new Result(true, "Ticket Status created", {
-//         ...result,
-//       }),
-//     );
-//   } catch (e) {
-//     next(e);
-//   }
-// };
+    return res.status(200).send(
+      new Result(true, "Ticket created", {
+        ...result,
+      }),
+    );
+  } catch (e) {
+    next(e);
+  }
+};
 
 // export const update: RequestHandler = async (req, res, next) => {
 //   try {
