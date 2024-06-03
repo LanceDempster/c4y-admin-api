@@ -178,7 +178,7 @@ export const search = async (props: any, page: number = 1) => {
     LEFT JOIN ticket_category ON ticket_category_id = ticket_category.id
     LEFT JOIN ticket_status ON ticket_status = ticket_status.id
     LEFT JOIN ticket_priority ON ticket_priority_id = ticket_priority.id
-    ${querys.length ? "WHERE " + querys.join(" OR ") : ""}
+    ${querys.length ? "WHERE " + querys.join(" AND ") : ""}
     ORDER BY tickets.id ASC
     LIMIT 10
     OFFSET (($${i} - 1) * 10)
