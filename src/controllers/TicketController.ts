@@ -2,15 +2,10 @@ import { RequestHandler } from "express";
 import { Result } from "../dto/Result";
 import { TicketSearch } from "../schemas/TicketSearch";
 import TicketModel from "../models/TicketModel";
-// import { RuleCreate } from "../schemas/RuleCreate";
-// import NotFound from "../errors/NotFound";
-// import { RuleUpdate } from "../schemas/RuleUpdate";
 import { Ticket } from "../interfaces/Ticket";
-import UserModel from "../models/UserModel";
 import { TicketCreate } from "../schemas/TicketCreate";
 import TicketModal from "../models/TicketModel";
-// import { TicketStatusCreate } from "../schemas/TicketStatusCreate";
-// import { TicketStatusUpdate } from "../schemas/TicketStatusUpdate";
+import NotFound from "../errors/NotFound";
 
 export const getAll: RequestHandler = async (req, res, next) => {
   try {
@@ -97,46 +92,46 @@ export const create: RequestHandler = async (req, res, next) => {
   }
 };
 
-// export const update: RequestHandler = async (req, res, next) => {
-//   try {
-//     const { id } = req.params;
+export const update: RequestHandler = async (req, res, next) => {
+  try {
+    const { id } = req.params;
 
-//     const ticketStatus = await TicketStatusModel.getById(~~+id);
+    const ticket = await TicketModel.getById(~~+id);
 
-//     if (!ticketStatus)
-//       return next(new NotFound("No ticket status with this ID"));
+    if (!ticket)
+      return next(new NotFound("No ticket status with this ID"));
 
-//     const newTicketStatus = await TicketStatusModel.updateById(
-//       ~~+id,
-//       req.body as TicketStatusUpdate,
-//     );
+    const newTicket = await TicketModel.updateById(
+      ~~+id,
+      req.body as Ticket,
+    );
 
-//     return res
-//       .status(200)
-//       .send(
-//         new Result(true, "Ticket Status updated successfully", newTicketStatus),
-//       );
-//   } catch (e) {
-//     next(e);
-//   }
-// };
+    return res
+      .status(200)
+      .send(
+        new Result(true, "Ticket updated successfully", newTicket),
+      );
+  } catch (e) {
+    next(e);
+  }
+};
 
-// export const deleteTicketStatus: RequestHandler<{ id: string }> = async (
-//   req,
-//   res,
-//   next,
-// ) => {
-//   try {
-//     const { id } = req.params;
+export const deleteTicket: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    const { id } = req.params;
 
-//     const ticketStatus = await TicketStatusModel.getById(~~+id);
+    const ticket = await TicketModel.getById(~~+id);
 
-//     if (!ticketStatus) return next(new NotFound("No ticket status with this ID"));
+    if (!ticket) return next(new NotFound("No ticket with this ID"));
 
-//     await TicketStatusModel.deleteById(ticketStatus.id);
+    await TicketModel.deleteById(ticket.id);
 
-//     return res.status(200).send(new Result(true, `Ticket status with Id:${id} deleted`));
-//   } catch (e) {
-//     next(e);
-//   }
-// };
+    return res.status(200).send(new Result(true, `Ticket with Id:${id} deleted`));
+  } catch (e) {
+    next(e);
+  }
+};

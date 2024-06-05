@@ -3,7 +3,7 @@ import {authAdmin} from "../middlewares/Auth";
 import * as TicketController from "../controllers/TicketController";
 import {bodyValidation} from "../middlewares/Validation";
 import { TicketCreateSchema } from "../schemas/TicketCreate";
-// import {TicketUpdateSchema} from "../schemas/TicketUpdate";
+import {TicketUpdateSchema} from "../schemas/TicketUpdate";
 
 
 const ticketRouter = Router();
@@ -17,9 +17,9 @@ ticketRouter.get('/get-all-by-status', authAdmin, TicketController.getAllByStatu
 
 ticketRouter.post('/create', authAdmin, bodyValidation(TicketCreateSchema), TicketController.create);
 
-// ticketRouter.put('/:id', authAdmin, bodyValidation(TicketStatusUpdateSchema), TicketStatusController.update);
+ticketRouter.put('/:id', authAdmin, bodyValidation(TicketUpdateSchema), TicketController.update);
 
-// ticketRouter.delete('/:id', authAdmin, TicketStatusController.deleteTicketStatus);
+ticketRouter.delete('/:id', authAdmin, TicketController.deleteTicket);
 
 
 export default ticketRouter;

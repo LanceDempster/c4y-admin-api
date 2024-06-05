@@ -157,7 +157,7 @@ const count = async () => {
 }
 
 
-const MessageModal = {
+const TicketStatusModal = {
     create,
     getById,
     // getAll,
@@ -170,7 +170,7 @@ const MessageModal = {
     count
 }
 
-export default MessageModal;
+export default TicketStatusModal;
 
 //////////////////////////////////////////////
 const recursiveToCamel = (item: any): any => {

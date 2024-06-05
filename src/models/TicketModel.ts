@@ -1,6 +1,6 @@
 import { query } from "../db";
 import { Ticket } from "../interfaces/Ticket";
-import { TicketSearch } from "../schemas/TicketSearch";
+import TicketStatusModel from "../models/TicketStatusModel";
 
 export const create = async (ticket: Ticket) => {
   const queryText =
@@ -33,16 +33,16 @@ export const create = async (ticket: Ticket) => {
   return res;
 };
 
-// export const getById = async (id: number) => {
-//     const {rows} = await query('SELECT * FROM ticket_status WHERE id=$1', [id])
+export const getById = async (id: number) => {
+  const { rows } = await query("SELECT * FROM tickets WHERE id=$1", [id]);
 
-//     if (!rows[0]) {
-//         return undefined
-//     }
+  if (!rows[0]) {
+    return undefined;
+  }
 
-//     const ticketStatus: Ticket = recursiveToCamel(rows[0]);
-//     return ticketStatus;
-// }
+  const ticket: Ticket = recursiveToCamel(rows[0]);
+  return ticket;
+};
 
 // export const getAll = async () => {
 //     const { rows } = await query('SELECT * FROM products', []);
@@ -58,39 +58,59 @@ export const create = async (ticket: Ticket) => {
 //     return user;
 // }
 
-// export const deleteById = async (id: number) => {
-//     await query('DELETE FROM ticket_status WHERE id=$1', [id]);
-//     return
-// }
+export const deleteById = async (id: number) => {
+  await query("DELETE FROM tickets WHERE id=$1", [id]);
+  return;
+};
 
-// export const updateById = async (id: number, newProps: any) => {
+export const updateById = async (id: number, newProps: any) => {
+  const querys: string[] = [];
+  const values: any[] = [];
 
-//     const querys: string[] = [];
-//     const values: any[] = [];
+  let i = 2;
+  for (let [key, value] of Object.entries(newProps)) {
+    if (value === "") {
+    } else if (!value) continue;
 
-//     let i = 2;
-//     for (const [key, value] of Object.entries(newProps)) {
-// 				if (value === ""){
+    if (key === "user" || key === "token") continue;
 
-// 				} else if (!value) continue;
+    if (key === "userId") {
+      value = parseInt(value.toString());
+    } else if (key === "categoryId") {
+      key = "ticketCategoryId";
+      value = parseInt(value.toString());
+    } else if (key === "statusId") {
+      key = "ticketStatus";
+      value = parseInt(value.toString());
 
-//         if (key === "user" || key === "token")
-//             continue
+      // @ts-ignore
+      const ticketStatus = await TicketStatusModel.getById(~~+value);
 
-//         querys.push(camleToSnake(key) + '=' + '$' + i);
-//         values.push(value);
-//         i++;
-//     }
+      if (ticketStatus?.name === "Closed") {
+        await query(
+          "UPDATE tickets SET close_date = NOW() WHERE id = $1 AND close_date IS NULL",
+          [id],
+        );
+      }
+    } else if (key === "priorityId") {
+      key = "ticketPriorityId";
+      value = parseInt(value.toString());
+    }
 
-//     const queryText = `UPDATE ticket_status
-//                        SET ${querys.join(',')}
-//                        WHERE id = $1 RETURNING *`
+    querys.push(camleToSnake(key) + "=" + "$" + i);
+    values.push(value);
+    i++;
+  }
 
-//     const {rows} = await query(queryText, [id, ...values]);
+  const queryText = `UPDATE tickets
+                       SET ${querys.join(",")}
+                       WHERE id = $1 RETURNING *`;
 
-//     const ticketStatus: TicketStatus = recursiveToCamel(rows[0])
-//     return ticketStatus;
-// }
+  const { rows } = await query(queryText, [id, ...values]);
+
+  const ticket: Ticket = recursiveToCamel(rows[0]);
+  return ticket;
+};
 
 // export const getOne = async (props: any) => {
 //     const querys: string[] = [];
@@ -200,22 +220,25 @@ const count = async () => {
   return rows[0];
 };
 
-const getAllByStatus = async() => {
-  const { rows } = await query(`select ticket_status."name", count(tickets.id) from tickets right join ticket_status on tickets.ticket_status = ticket_status.id  group by ticket_status."name"`, []);
+const getAllByStatus = async () => {
+  const { rows } = await query(
+    `select ticket_status."name", count(tickets.id) from tickets right join ticket_status on tickets.ticket_status = ticket_status.id  group by ticket_status."name"`,
+    [],
+  );
 
   return rows;
 };
 
 const TicketModal = {
   create,
-  // getById,
+  getById,
   // getAll,
   // getOne,
   // getMany,
-  // updateById,
-  // deleteById,
+  updateById,
+  deleteById,
   // getByEmail,
-	getAllByStatus,
+  getAllByStatus,
   search,
   count,
 };
