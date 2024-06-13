@@ -20,6 +20,7 @@ import pauseGameRouter from "./api/PauseGameRouter";
 import ruleRouter from "./api/RuleRouter";
 import StoryStatusRouter from "./api/StoryStatusRouter";
 import ticketRouter from "./api/TicketRouter";
+import BillingStatusRouter from "./api/BillingStatusRouter";
 
 console.log('ENV:' + process.env.NODE_ENV);
 
@@ -55,6 +56,10 @@ app.use('/message', messageRouter);
 app.use('/pause_game', pauseGameRouter);
 app.use('/rule', ruleRouter);
 app.use('/story_status', StoryStatusRouter);
+
+// second phase
+app.use('/billing_status', BillingStatusRouter);
+
 // --------------------------------------------
 
 // Error Hadler Middleware
