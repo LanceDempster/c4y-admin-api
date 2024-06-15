@@ -22,6 +22,7 @@ import StoryStatusRouter from "./api/StoryStatusRouter";
 import ticketRouter from "./api/TicketRouter";
 import BillingStatusRouter from "./api/BillingStatusRouter";
 import ChallengeRouter from "./api/ChallengeRouter";
+import DeviceBreakInRouter from "./api/DeviceBreakInRouter";
 
 console.log('ENV:' + process.env.NODE_ENV);
 
@@ -60,6 +61,7 @@ app.use('/story_status', StoryStatusRouter);
 
 // second phase
 app.use('/billing_status', BillingStatusRouter);
+app.use('/device_break_in', DeviceBreakInRouter);
 app.use('/challenge', ChallengeRouter);
 
 // --------------------------------------------
