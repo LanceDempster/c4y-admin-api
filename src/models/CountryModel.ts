@@ -48,11 +48,9 @@ export const deleteById = async (id: number) => {
     await query('DELETE FROM country WHERE id=$1', [id]);
     return
 }
-//
-//
-export const updateById = async (id: number, newProps: CountryUpdate) => {
 
-    console.log(newProps)
+
+export const updateById = async (id: number, newProps: CountryUpdate) => {
 
     const querys: string[] = [];
     const values: any[] = [];
@@ -78,7 +76,7 @@ export const updateById = async (id: number, newProps: CountryUpdate) => {
     const country: Country = recursiveToCamel(rows[0])
     return country;
 }
-//
+
 // export const getOne = async (props: any) => {
 //     const querys: string[] = [];
 //     const values: any[] = [];

@@ -1,5 +1,4 @@
 import { query } from "../db";
-import { Message } from "../interfaces/Message";
 import { Rule } from "../interfaces/Rule";
 
 export const create = async (rule: Rule) => {
