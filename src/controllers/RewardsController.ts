@@ -2,11 +2,6 @@ import { RequestHandler } from "express";
 import { Result } from "../dto/Result";
 import NotFound from "../errors/NotFound";
 
-import ToyModal from "../models/ToyModel";
-import { ToySearch } from "../schemas/ToysSearch";
-import { Toy } from "../interfaces/Toy";
-import { ToyCreate } from "../schemas/ToyCreate";
-import { ToyUpdate } from "../schemas/ToysUpdate";
 import { RewardSearch as RewardSearch } from "../schemas/RewardSearch";
 import { Reward } from "../interfaces/Reward";
 import RewardModal from "../models/RewardModel";
