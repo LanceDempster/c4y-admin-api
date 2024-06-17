@@ -24,6 +24,7 @@ import BillingStatusRouter from "./api/BillingStatusRouter";
 import ChallengeRouter from "./api/ChallengeRouter";
 import DeviceBreakInRouter from "./api/DeviceBreakInRouter";
 import ToysRouter from "./api/ToysRouter";
+import RewardsRouter from "./api/RewardsRouter";
 
 console.log('ENV:' + process.env.NODE_ENV);
 
@@ -65,6 +66,7 @@ app.use('/billing_status', BillingStatusRouter);
 app.use('/device_break_in', DeviceBreakInRouter);
 app.use('/challenge', ChallengeRouter);
 app.use('/toys', ToysRouter);
+app.use('/rewards', RewardsRouter);
 
 // --------------------------------------------
 
