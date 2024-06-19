@@ -8,6 +8,7 @@ import { ResetPasswordSchema } from "../schemas/ResetPassword";
 import { UserSearchSchema } from "../schemas/UserSearch";
 import { authAdmin, authUser } from "../middlewares/Auth";
 import { UserUpdateSchema } from "../schemas/UserUpdate";
+import { ChangePasswordSchema } from "../schemas/changePasswordSchema";
 
 const userRouter = Router();
 
@@ -36,5 +37,7 @@ userRouter.delete('/:id', authAdmin, UserController.deleteUser );
 userRouter.post('/activate/:id', authAdmin, UserController.activate );
 
 userRouter.post('/disable/:id', authAdmin, UserController.disable );
+
+userRouter.post('/change-password', bodyValidation(ChangePasswordSchema), UserController.changePassword);
 
 export default userRouter;
