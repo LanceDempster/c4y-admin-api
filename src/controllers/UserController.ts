@@ -16,6 +16,8 @@ import { AccountStatus } from "../enum/AccountStatus";
 import { sendMail } from "../utils/email";
 import { Token } from "../types/Token";
 import { ChangePassword } from "../schemas/changePasswordSchema";
+import { UserProductSearch } from "../schemas/UserProductSearch";
+import { UserProductFull } from "../interfaces/UserProductFull";
 
 export const login: RequestHandler = async (req, res, next) => {
   try {
@@ -68,7 +70,7 @@ export const changePassword: RequestHandler = async (req, res, next) => {
       .status(200)
       .send(new Result(true, "Your password have been changed successfully!"));
   } else {
-		return 
+    return;
   }
 };
 
@@ -303,6 +305,44 @@ export const update: RequestHandler<{ id: string }> = async (
     return res
       .status(200)
       .send(new Result(true, "User updated successfully", newUser));
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getUserProducts: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    let query = {};
+    Object.assign(query, req.query);
+    const {
+      page,
+			orderBy,
+			orderDirection
+    }: UserProductSearch = query;
+
+    let [userProducts, count] = await UserModel.getUserProducts(
+      page,
+      orderBy ?? "id",
+      orderDirection ?? "asc",
+    );
+
+    // if(count === -1) count = await UserModel.count();
+
+    res.status(200).send(
+      new Result(
+        true,
+        count + "",
+        userProducts.map((x: UserProductFull) => {
+          return {
+            ...x,
+          };
+        }),
+      ),
+    );
   } catch (e) {
     next(e);
   }

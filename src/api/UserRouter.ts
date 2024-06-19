@@ -24,6 +24,8 @@ userRouter.get('/profile', authUser, UserController.getProfile );
 
 userRouter.get('/', queryValidation(UserSearchSchema), authAdmin, UserController.getAll );
 
+userRouter.get('/products/:id', authAdmin, UserController.getUserProducts);
+
 userRouter.get('/active', authAdmin, UserController.getAllActiveCount);
 
 userRouter.get('/:id', authAdmin, UserController.get );

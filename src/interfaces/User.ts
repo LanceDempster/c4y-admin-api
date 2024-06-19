@@ -9,6 +9,7 @@ export interface User extends Base {
     password: string,
     passwordCreateDate: Date,
     country: string,
+		productsCount: number,
     dateOfBirth: Date,
     accountStatus: AccountStatus,
     accountCreateDate: Date,
