@@ -22,11 +22,7 @@ userRouter.post('/reset-password', bodyValidation(ResetPasswordSchema), UserCont
 
 userRouter.get('/profile', authUser, UserController.getProfile );
 
-// userRouter.get('/', () => {
-// 	return "Test successfully"
-// });
-
-userRouter.get('/',  UserController.getAll );
+userRouter.get('/', queryValidation(UserSearchSchema), authAdmin, UserController.getAll );
 
 userRouter.get('/products/:id', authAdmin, UserController.getUserProducts);
 
