@@ -3,7 +3,7 @@ name: Docker
 on:
   push:
     branches:
-      - master
+      - main
 
 env:
   REGISTRY: 058264089507.dkr.ecr.eu-west-2.amazonaws.com
