@@ -26,6 +26,10 @@ userRouter.get('/', queryValidation(UserSearchSchema), authAdmin, UserController
 
 userRouter.get('/products/:id', authAdmin, UserController.getUserProducts);
 
+userRouter.post('/products/create', authAdmin, UserController.createUserProduct);
+
+userRouter.delete('/products/:userid/:productid', authAdmin, UserController.deleteUserProduct);
+
 userRouter.get('/active', authAdmin, UserController.getAllActiveCount);
 
 userRouter.get('/:id', authAdmin, UserController.get );

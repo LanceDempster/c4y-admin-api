@@ -18,6 +18,7 @@ import { Token } from "../types/Token";
 import { ChangePassword } from "../schemas/changePasswordSchema";
 import { UserProductSearch } from "../schemas/UserProductSearch";
 import { UserProductFull } from "../interfaces/UserProductFull";
+import UserProductModel from "../models/UserProductModel";
 
 export const login: RequestHandler = async (req, res, next) => {
   try {
@@ -322,9 +323,12 @@ export const getUserProducts: RequestHandler<{ id: string }> = async (
       page,
 			orderBy,
 			orderDirection
-    }: UserProductSearch = query;
+    }: any = query;
+
+		const {id} = req.params;
 
     let [userProducts, count] = await UserModel.getUserProducts(
+			parseInt(id),
       page,
       orderBy ?? "id",
       orderDirection ?? "asc",
@@ -343,6 +347,42 @@ export const getUserProducts: RequestHandler<{ id: string }> = async (
         }),
       ),
     );
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const createUserProduct: RequestHandler = async (req, res, next) => {
+  try {
+    const userProductData = req.body as {userId: number, productCode: number};
+
+    const result = await UserProductModel.create(userProductData.userId, userProductData.productCode);
+
+    return res.status(200).send(
+      new Result(true, "Added product to user", {
+        id: result.id,
+      }),
+    );
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const deleteUserProduct: RequestHandler<{ userid: string, productid: string }> = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    const { userid, productid } = req.params;
+
+    const userProduct = await UserProductModel.getById(~~+userid, ~~+productid);
+
+    if (!userProduct) return next(new NotFound("No user product with this ID"));
+
+    await UserProductModel.deleteById(~~+userid, ~~+productid);
+
+    return res.status(200).send(new Result(true, `User product with Id:${productid} deleted`));
   } catch (e) {
     next(e);
   }

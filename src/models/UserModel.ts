@@ -61,6 +61,7 @@ export const getAll = async () => {
 };
 
 export const getUserProducts = async (
+	userId: number,
   page: number = 1,
   orderBy?: string,
   orderDirection?: string,
@@ -69,9 +70,9 @@ export const getUserProducts = async (
 
   const { rows } = await query(
     `SELECT *, product.id as product_id, count(*) OVER() AS count FROM  \
-				user_product left join product on user_product.product_code = product.product_code \
-				ORDER BY id ASC LIMIT 10 OFFSET (($1 - 1) * 10)`,
-    [page],
+				user_product inner join product on user_product.product_code = product.product_code \
+				WHERE user_product.user_id = ($1) ORDER BY id ASC LIMIT 10 OFFSET (($2 - 1) * 10)`,
+    [userId, page],
   );
 
   return [
