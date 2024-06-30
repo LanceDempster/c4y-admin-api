@@ -34,9 +34,9 @@ userRouter.get('/active', authAdmin, UserController.getAllActiveCount);
 
 userRouter.get('/:id', authAdmin, UserController.get );
 
-userRouter.post('/create', bodyValidation(UserResgisterSchema), UserController.create );
+userRouter.post('/create', authAdmin, bodyValidation(UserResgisterSchema), UserController.create );
 
-userRouter.put('/:id', bodyValidation(UserUpdateSchema), UserController.update );
+userRouter.put('/:id', authAdmin, bodyValidation(UserUpdateSchema), UserController.update );
 
 userRouter.delete('/:id', authAdmin, UserController.deleteUser );
 
@@ -44,6 +44,6 @@ userRouter.post('/activate/:id', authAdmin, UserController.activate );
 
 userRouter.post('/disable/:id', authAdmin, UserController.disable );
 
-userRouter.post('/change-password', bodyValidation(ChangePasswordSchema), UserController.changePassword);
+userRouter.post('/change-password', authAdmin, bodyValidation(ChangePasswordSchema), UserController.changePassword);
 
 export default userRouter;

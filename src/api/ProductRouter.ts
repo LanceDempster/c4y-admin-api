@@ -13,9 +13,9 @@ productRouter.get('/', queryValidation(ProductSearchSchema), authAdmin, ProductC
 
 productRouter.get('/:id', authAdmin, ProductController.get );
 
-productRouter.post('/create', bodyValidation(ProductCreateSchema), ProductController.create );
+productRouter.post('/create', authAdmin,bodyValidation(ProductCreateSchema), ProductController.create );
 
-productRouter.put('/:id', bodyValidation(ProductUpdateSchema), ProductController.update );
+productRouter.put('/:id', authAdmin, bodyValidation(ProductUpdateSchema), ProductController.update );
 
 productRouter.delete('/:id', authAdmin, ProductController.deleteProduct );
 

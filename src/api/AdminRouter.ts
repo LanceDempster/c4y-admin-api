@@ -14,13 +14,13 @@ const adminRouter = Router();
 
 adminRouter.post('/login', bodyValidation(LoginSchema), AdminController.login );
 
-adminRouter.get('/', queryValidation(AdminSearchSchema) , AdminController.getAll );
+adminRouter.get('/', authAdmin, queryValidation(AdminSearchSchema), AdminController.getAll );
 
 adminRouter.get('/:id', authAdmin, AdminController.get );
 
-adminRouter.post('/create', bodyValidation(AdminCreateSchema), AdminController.create );
+adminRouter.post('/create', authAdmin, bodyValidation(AdminCreateSchema), AdminController.create );
 
-adminRouter.put('/:id', bodyValidation(AdminUpdateSchema), AdminController.update );
+adminRouter.put('/:id', authAdmin, bodyValidation(AdminUpdateSchema), AdminController.update );
 
 adminRouter.delete('/:id', authAdmin, AdminController.deleteAdmin );
 
