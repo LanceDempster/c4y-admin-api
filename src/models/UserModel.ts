@@ -61,7 +61,7 @@ export const getAll = async () => {
 };
 
 export const getUserProducts = async (
-	userId: number,
+  userId: number,
   page: number = 1,
   orderBy?: string,
   orderDirection?: string,
@@ -219,6 +219,70 @@ const count = async () => {
   return rows[0];
 };
 
+const getSettings = async (id: string) => {
+  const { rows } = await query(
+    "SELECT * FROM user_settings WHERE user_id = $1",
+    [id],
+  );
+
+  if (!rows[0]) return undefined;
+
+  const userSettings = recursiveToCamel(rows[0]);
+
+  return userSettings;
+};
+
+const ifNoUserSettingsCreate = async (userId: number) => {
+  const { rows } = await query(
+    "SELECT * FROM user_settings WHERE user_id = $1",
+    [userId],
+  );
+
+  if (rows.length === 0) {
+    // User ID not found, create a new row
+    await query("INSERT INTO user_settings (user_id) VALUES ($1)", [userId]);
+  }
+};
+
+const updateSettings1 = async ({
+  community,
+  gameMessages,
+  marketingMessages,
+  keyHolder,
+  userStories,
+  id,
+}: {
+  community: boolean;
+  gameMessages: boolean;
+  marketingMessages: boolean;
+  keyHolder: boolean;
+  userStories: boolean;
+  id: number;
+}) => {
+  ifNoUserSettingsCreate(id);
+
+  const queryText = `UPDATE user_settings
+                       SET 
+											 community = $2,
+											 game_messages = $3,
+											 marketing_messages = $4,
+											 keyholder = $5,
+											 user_story = $6,
+											 product_setup_status = 1
+                       WHERE user_id = $1 RETURNING *`;
+
+  const { rows } = await query(queryText, [
+    id,
+    community,
+    gameMessages,
+    marketingMessages,
+    keyHolder,
+    userStories,
+  ]);
+
+  return true;
+};
+
 const UserModel = {
   create,
   getById,
@@ -232,6 +296,8 @@ const UserModel = {
   getTotalActiveUsers,
   count,
   getUserProducts,
+  getSettings,
+  updateSettings1,
 };
 
 export default UserModel;

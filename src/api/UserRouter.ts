@@ -20,9 +20,13 @@ userRouter.post('/forgot-password', bodyValidation(ForgotPasswordSchema), UserCo
 
 userRouter.post('/reset-password', bodyValidation(ResetPasswordSchema), UserController.resetPassword );
 
+userRouter.get('/settings', authUser, UserController.getUserSettings)
+
 userRouter.get('/profile', authUser, UserController.getProfile );
 
 userRouter.get('/', queryValidation(UserSearchSchema), authAdmin, UserController.getAll );
+
+userRouter.get('/products', authUser, UserController.getMyProducts);
 
 userRouter.get('/products/:id', authAdmin, UserController.getUserProducts);
 
@@ -36,14 +40,21 @@ userRouter.get('/:id', authAdmin, UserController.get );
 
 userRouter.post('/create', authAdmin, bodyValidation(UserResgisterSchema), UserController.create );
 
-userRouter.put('/:id', authAdmin, bodyValidation(UserUpdateSchema), UserController.update );
-
-userRouter.delete('/:id', authAdmin, UserController.deleteUser );
-
 userRouter.post('/activate/:id', authAdmin, UserController.activate );
 
 userRouter.post('/disable/:id', authAdmin, UserController.disable );
 
 userRouter.post('/change-password', authAdmin, bodyValidation(ChangePasswordSchema), UserController.changePassword);
+
+userRouter.put('/:id', authAdmin, bodyValidation(UserUpdateSchema), UserController.update );
+
+userRouter.delete('/:id', authAdmin, UserController.deleteUser );
+
+
+
+// user settings form steps
+userRouter.post("/userSettings/1", authUser, UserController.userSettings1)
+
+
 
 export default userRouter;

@@ -11,7 +11,7 @@ import { ForgotPassword } from "../schemas/ForgotPassword";
 import BadRequest from "../errors/BadRequest";
 import { Result } from "../dto/Result";
 import { ResetPassword } from "../schemas/ResetPassword";
-import { UserSearch } from "../schemas/UserSearch";
+import { UserSearch, UserSearchSchema } from "../schemas/UserSearch";
 import { AccountStatus } from "../enum/AccountStatus";
 import { sendMail } from "../utils/email";
 import { Token } from "../types/Token";
@@ -319,16 +319,12 @@ export const getUserProducts: RequestHandler<{ id: string }> = async (
   try {
     let query = {};
     Object.assign(query, req.query);
-    const {
-      page,
-			orderBy,
-			orderDirection
-    }: any = query;
+    const { page, orderBy, orderDirection }: any = query;
 
-		const {id} = req.params;
+    const { id } = req.params;
 
     let [userProducts, count] = await UserModel.getUserProducts(
-			parseInt(id),
+      parseInt(id),
       page,
       orderBy ?? "id",
       orderDirection ?? "asc",
@@ -352,11 +348,43 @@ export const getUserProducts: RequestHandler<{ id: string }> = async (
   }
 };
 
+export const getMyProducts: RequestHandler = async (req, res, next) => {
+  try {
+    const { id } = req.body.user.id;
+
+    let [userProducts, count] = await UserModel.getUserProducts(
+      id,
+      0,
+      "id",
+      "asc",
+    );
+
+    // if(count === -1) count = await UserModel.count();
+
+    res.status(200).send(
+      new Result(
+        true,
+        count + "",
+        userProducts.map((x: UserProductFull) => {
+          return {
+            ...x,
+          };
+        }),
+      ),
+    );
+  } catch (e) {
+    next(e);
+  }
+};
+
 export const createUserProduct: RequestHandler = async (req, res, next) => {
   try {
-    const userProductData = req.body as {userId: number, productCode: number};
+    const userProductData = req.body as { userId: number; productCode: number };
 
-    const result = await UserProductModel.create(userProductData.userId, userProductData.productCode);
+    const result = await UserProductModel.create(
+      userProductData.userId,
+      userProductData.productCode,
+    );
 
     return res.status(200).send(
       new Result(true, "Added product to user", {
@@ -368,11 +396,10 @@ export const createUserProduct: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const deleteUserProduct: RequestHandler<{ userid: string, productid: string }> = async (
-  req,
-  res,
-  next,
-) => {
+export const deleteUserProduct: RequestHandler<{
+  userid: string;
+  productid: string;
+}> = async (req, res, next) => {
   try {
     const { userid, productid } = req.params;
 
@@ -382,7 +409,9 @@ export const deleteUserProduct: RequestHandler<{ userid: string, productid: stri
 
     await UserProductModel.deleteById(~~+userid, ~~+productid);
 
-    return res.status(200).send(new Result(true, `User product with Id:${productid} deleted`));
+    return res
+      .status(200)
+      .send(new Result(true, `User product with Id:${productid} deleted`));
   } catch (e) {
     next(e);
   }
@@ -443,6 +472,42 @@ export const getProfile: RequestHandler<{ id: string }> = async (
 ) => {
   try {
     return res.status(200).send(new Result(true, "", req.body.user));
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getUserSettings: RequestHandler = async (req, res, next) => {
+  try {
+    let userSettings = await UserModel.getSettings(req.body.user.id);
+
+    return res.status(200).send(JSON.stringify(userSettings));
+  } catch (e) {
+    next(e);
+  }
+};
+
+// user settings form steps
+export const userSettings1: RequestHandler = async (req, res, next) => {
+  try {
+    const id = req.body.user.id
+
+    const userSettings1Data = {...req.body, id: id} as {
+      community: boolean;
+      gameMessages: boolean;
+      marketingMessages: boolean;
+      keyHolder: boolean;
+      userStories: boolean;
+			id: number
+		};
+
+    const result = await UserModel.updateSettings1(
+			userSettings1Data
+    );
+
+    return res.status(200).send(
+      new Result(true, "updated settings to user"),
+    );
   } catch (e) {
     next(e);
   }

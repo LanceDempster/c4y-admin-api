@@ -73,8 +73,6 @@ export const updateById = async (id: number, newProps: any) => {
         i++;
     }
 
-    console.log(querys);
-
     const queryText = `UPDATE admins SET ${querys.join(',')} WHERE id = $1 RETURNING *`
 
     const { rows } = await query(queryText, [id, ...values]);
