@@ -47,7 +47,8 @@ export const create: RequestHandler = async (req, res, next) => {
       name: rewardData.name,
       description: rewardData.description,
       rewardImage: rewardData.rewardImage,
-      rewardUrl: rewardData.rewardUrl,
+      // @ts-ignore
+      rewardUrl: req?.file?.location,
     };
 
     const result = await RewardModal.create(reward);
@@ -69,6 +70,11 @@ export const update: RequestHandler = async (req, res, next) => {
     const reward = await RewardModal.getById(~~+id);
 
     if (!reward) return next(new NotFound("No reward with this ID"));
+
+    if (req?.file) {
+      // @ts-ignore
+      req.body.rewardUrl = req.file.location;
+    }
 
     const newReward = await RewardModal.updateById(~~+id, req.body as RewardUpdate);
 
