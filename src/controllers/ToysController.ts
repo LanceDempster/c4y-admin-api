@@ -46,7 +46,8 @@ export const create: RequestHandler = async (req, res, next) => {
       name: toyData.name,
       description: toyData.description,
       toyImage: toyData.toyImage,
-      toyUrl: toyData.toyUrl,
+      // @ts-ignore
+      toyUrl: req?.file?.location,
     };
 
     const result = await ToyModal.create(toy);
@@ -68,6 +69,11 @@ export const update: RequestHandler = async (req, res, next) => {
     const toy = await ToyModal.getById(~~+id);
 
     if (!toy) return next(new NotFound("No toy with this ID"));
+
+    if (req?.file) {
+      // @ts-ignore
+      req.body.toyUrl = req.file.location;
+    }
 
     const newToy = await ToyModal.updateById(
       ~~+id,

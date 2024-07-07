@@ -4,18 +4,14 @@ import * as PunishmentsController from "../controllers/PunishmentsController";
 import { PunishmentCreateSchema } from "../schemas/PunishmentCreate";
 import { bodyValidation } from "../middlewares/Validation";
 import { PunishmentUpdateSchema } from "../schemas/PunishmentUpdate";
+
 import multer from "multer";
 import { fromEnv } from "@aws-sdk/credential-providers"; // ES6 import
+
 import crypto from 'crypto'
 
 import {
   S3Client,
-  PutObjectCommand,
-  CreateBucketCommand,
-  DeleteObjectCommand,
-  DeleteBucketCommand,
-  paginateListObjectsV2,
-  GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import multerS3 from "multer-s3";
 
