@@ -12,6 +12,8 @@ import { Punishment } from "../interfaces/Punishment";
 import PunishmentModal from "../models/PunishmentModel";
 import { PunishmentCreate } from "../schemas/PunishmentCreate";
 import { PunishmentUpdate } from "../schemas/PunishmentUpdate";
+import { fromEnv } from "@aws-sdk/credential-providers"; // ES6 import
+import multer from "multer";
 
 export const getAll: RequestHandler = async (req, res, next) => {
   try {
@@ -50,6 +52,9 @@ export const getAll: RequestHandler = async (req, res, next) => {
 };
 
 export const create: RequestHandler = async (req, res, next) => {
+  // Create an Amazon S3 bucket. The epoch timestamp is appended
+  // to the name to make it unique.
+
   try {
     const punishmentData = req.body as PunishmentCreate;
 
@@ -58,7 +63,8 @@ export const create: RequestHandler = async (req, res, next) => {
       name: punishmentData.name,
       description: punishmentData.description,
       punishmentImage: punishmentData.punishmentImage,
-      punishmentUrl: punishmentData.punishmentUrl,
+      // @ts-ignore
+      punishmentUrl: req?.file?.location,
       level: punishmentData.level,
     };
 
@@ -72,6 +78,8 @@ export const create: RequestHandler = async (req, res, next) => {
   } catch (e) {
     next(e);
   }
+
+  return res.status(200).send(new Result(true, "Punishment created", {}));
 };
 
 export const update: RequestHandler = async (req, res, next) => {
@@ -82,7 +90,17 @@ export const update: RequestHandler = async (req, res, next) => {
 
     if (!punishment) return next(new NotFound("No punishment with this ID"));
 
-    const newPunishment = await PunishmentModal.updateById(~~+id, req.body as PunishmentUpdate);
+    let newPunishment;
+
+    if (req?.file) {
+      // @ts-ignore
+      req.body.punishmentUrl = req.file.location;
+    }
+
+    newPunishment = await PunishmentModal.updateById(
+      ~~+id,
+      req.body as PunishmentUpdate,
+    );
 
     return res
       .status(200)
@@ -92,21 +110,24 @@ export const update: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const deletePunishment: RequestHandler<{ id: string }> = async (req, res, next) => {
-    try {
-        const {id} = req.params;
+export const deletePunishment: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    const { id } = req.params;
 
-        const punishment = await PunishmentModal.getById(~~(+id));
+    const punishment = await PunishmentModal.getById(~~+id);
 
-        if (!punishment) return next(new NotFound('No punishment with this ID'));
+    if (!punishment) return next(new NotFound("No punishment with this ID"));
 
-        await PunishmentModal.deleteById(punishment.id);
+    await PunishmentModal.deleteById(punishment.id);
 
-        return res.status(200).send(new Result(
-            true,
-            `Punishment with Id:${id} deleted`
-        ));
-    } catch (e) {
-        next(e);
-    }
-}
+    return res
+      .status(200)
+      .send(new Result(true, `Punishment with Id:${id} deleted`));
+  } catch (e) {
+    next(e);
+  }
+};

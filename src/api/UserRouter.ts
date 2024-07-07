@@ -55,6 +55,8 @@ userRouter.delete('/:id', authAdmin, UserController.deleteUser );
 // user settings form steps
 userRouter.post("/userSettings/1", authUser, UserController.userSettings1)
 
+userRouter.post("/userSettings/2", authUser, UserController.userSettings2)
+
 
 
 export default userRouter;

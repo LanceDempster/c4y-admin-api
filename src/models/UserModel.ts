@@ -283,6 +283,34 @@ const updateSettings1 = async ({
   return true;
 };
 
+const updateSettings2 = async ({ id }: { id: number }) => {
+
+  const { rows } = await query(
+    `SELECT product_code FROM user_product where user_id = $1`,
+    [id],
+  );
+
+  const queryText = `update user_settings set product_setup_status = 2 where user_id = $1 RETURNING *`;
+
+  await query(queryText, [id]);
+
+  const queryText2 = `
+	INSERT INTO dairy 
+		(user_id, created_date, title, entry, type, product)
+		VALUES ($1, $2, $3, $4, $5, $6)`;
+
+  await query(queryText2, [
+    id,
+    new Date(),
+    "Diary Started",
+    "The day the user setup his diary",
+    "c",
+    rows[0]["product_code"],
+  ]);
+
+  return true;
+};
+
 const UserModel = {
   create,
   getById,
@@ -298,6 +326,7 @@ const UserModel = {
   getUserProducts,
   getSettings,
   updateSettings1,
+  updateSettings2,
 };
 
 export default UserModel;

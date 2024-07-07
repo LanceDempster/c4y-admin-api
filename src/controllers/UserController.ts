@@ -490,24 +490,32 @@ export const getUserSettings: RequestHandler = async (req, res, next) => {
 // user settings form steps
 export const userSettings1: RequestHandler = async (req, res, next) => {
   try {
-    const id = req.body.user.id
+    const id = req.body.user.id;
 
-    const userSettings1Data = {...req.body, id: id} as {
+    const userSettings1Data = { ...req.body, id: id } as {
       community: boolean;
       gameMessages: boolean;
       marketingMessages: boolean;
       keyHolder: boolean;
       userStories: boolean;
-			id: number
-		};
+      id: number;
+    };
 
-    const result = await UserModel.updateSettings1(
-			userSettings1Data
-    );
+    const result = await UserModel.updateSettings1(userSettings1Data);
 
-    return res.status(200).send(
-      new Result(true, "updated settings to user"),
-    );
+    return res.status(200).send(new Result(true, "updated settings to user"));
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const userSettings2: RequestHandler = async (req, res, next) => {
+  try {
+    const id = req.body.user.id;
+
+    const result = await UserModel.updateSettings2({id});
+
+    return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
     next(e);
   }
