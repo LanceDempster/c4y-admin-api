@@ -350,7 +350,8 @@ export const getUserProducts: RequestHandler<{ id: string }> = async (
 
 export const getMyProducts: RequestHandler = async (req, res, next) => {
   try {
-    const { id } = req.body.user.id;
+
+		const id = req.body.user.id
 
     let [userProducts, count] = await UserModel.getUserProducts(
       id,
@@ -537,3 +538,47 @@ export const userSettings3: RequestHandler = async (req, res, next) => {
 
 }
 
+export const userSettings4: RequestHandler = async (req, res, next) => {
+  try {
+    const id = req.body.user.id;
+
+		const lockIds = req.body.lockIds
+
+    const result = await UserModel.updateSettings4({id, lockIds});
+
+    return res.status(200).send(new Result(true, "updated settings to user"));
+  } catch (e) {
+    next(e);
+  }
+
+}
+
+export const userSettings5: RequestHandler = async (req, res, next) => {
+  try {
+    const id = req.body.user.id;
+
+		const rewardsIds = req.body.rewardIds
+
+    const result = await UserModel.updateSettings5({id, rewardsIds});
+
+    return res.status(200).send(new Result(true, "updated settings to user"));
+  } catch (e) {
+    next(e);
+  }
+
+}
+
+export const userSettings6: RequestHandler = async (req, res, next) => {
+  try {
+    const id = req.body.user.id;
+
+		const punishmentsIds = req.body.punishmentIds
+
+    const result = await UserModel.updateSettings6({id, punishmentsIds});
+
+    return res.status(200).send(new Result(true, "updated settings to user"));
+  } catch (e) {
+    next(e);
+  }
+
+}

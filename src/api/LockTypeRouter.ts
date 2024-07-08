@@ -9,7 +9,7 @@ import {LockTypeUpdateSchema} from "../schemas/LockTypeUpdate";
 const LockTypeRouter = Router();
 
 
-LockTypeRouter.get('/', authAdmin, LockTypeController.getAll);
+LockTypeRouter.get('/', LockTypeController.getAll);
 
 // productRouter.get('/:id', authAdmin, ProductController.get );
 

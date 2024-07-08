@@ -7,7 +7,7 @@ import { ForgotPasswordSchema } from "../schemas/ForgotPassword";
 import { ResetPasswordSchema } from "../schemas/ResetPassword";
 import { UserSearchSchema } from "../schemas/UserSearch";
 import { authAdmin, authUser } from "../middlewares/Auth";
-import { UserUpdateSchema } from "../schemas/UserUpdate";
+import { UserUpdateSchema } from "../schemas/UserUpdate"; 
 import { ChangePasswordSchema } from "../schemas/changePasswordSchema";
 
 const userRouter = Router();
@@ -57,7 +57,12 @@ userRouter.post("/userSettings/1", authUser, UserController.userSettings1)
 
 userRouter.post("/userSettings/2", authUser, UserController.userSettings2)
 
-userRouter.post("/userSettings/3", authUser, UserController.userSettings3)
+userRouter.post("/userSettings/3", authUser, UserController.userSettings2)
 
+userRouter.post("/userSettings/4", authUser, UserController.userSettings4)
+
+userRouter.post("/userSettings/5", authUser, UserController.userSettings5)
+
+userRouter.post("/userSettings/6", authUser, UserController.userSettings6)
 
 export default userRouter;

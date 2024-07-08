@@ -317,10 +317,74 @@ const updateSettings3 = async ({
   id: number;
   deviceIds: number[];
 }) => {
-  const queryText = `INSERT INTO user_device_type (user_id, device_type) values ($1, $2) RETURNING *`;
+  const queryText = `update user_settings set product_setup_status = 3 where user_id = $1 RETURNING *`;
+
+  await query(queryText, [id]);
+
+  const queryText2 = `INSERT INTO user_device_type (user_id, device_type) values ($1, $2) RETURNING *`;
 
   deviceIds.forEach(async (deviceId) => {
-    await query(queryText, [id, deviceId]);
+    await query(queryText2, [id, deviceId]);
+  });
+
+  return true;
+};
+
+const updateSettings4 = async ({
+  id,
+  lockIds,
+}: {
+  id: number;
+  lockIds: number[];
+}) => {
+  const queryText = `update user_settings set product_setup_status = 4 where user_id = $1 RETURNING *`;
+
+  await query(queryText, [id]);
+
+  const queryText2 = `INSERT INTO user_lock_type (user_id, lock_type_id) values ($1, $2) RETURNING *`;
+
+  lockIds.forEach(async (lockId) => {
+    await query(queryText2, [id, lockId]);
+  });
+
+  return true;
+};
+
+const updateSettings5 = async ({
+  id,
+  rewardsIds,
+}: {
+  id: number;
+  rewardsIds: number[];
+}) => {
+  const queryText = `update user_settings set product_setup_status = 5 where user_id = $1 RETURNING *`;
+
+  await query(queryText, [id]);
+
+  const queryText2 = `INSERT INTO user_rewards (user_id, reward_id) values ($1, $2) RETURNING *`;
+
+  rewardsIds.forEach(async (rewardId) => {
+    await query(queryText2, [id, rewardId]);
+  });
+
+  return true;
+};
+
+const updateSettings6 = async ({
+  id,
+  punishmentsIds,
+}: {
+  id: number;
+  punishmentsIds: number[];
+}) => {
+  const queryText = `update user_settings set product_setup_status = 6 where user_id = $1 RETURNING *`;
+
+  await query(queryText, [id]);
+
+  const queryText2 = `INSERT INTO user_punishments (user_id, punishment_id) values ($1, $2) RETURNING *`;
+
+  punishmentsIds.forEach(async (punishmentId) => {
+    await query(queryText2, [id, punishmentId]);
   });
 
   return true;
@@ -343,6 +407,9 @@ const UserModel = {
   updateSettings1,
   updateSettings2,
   updateSettings3,
+  updateSettings4,
+  updateSettings5,
+  updateSettings6,
 };
 
 export default UserModel;

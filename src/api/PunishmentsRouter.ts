@@ -37,7 +37,7 @@ const upload = multer({
   }),
 });
 
-PunishmentsRouter.get("/", authAdmin, PunishmentsController.getAll);
+PunishmentsRouter.get("/", PunishmentsController.getAll);
 
 // productRouter.get('/:id', authAdmin, ProductController.get );
 

@@ -35,7 +35,7 @@ const upload = multer({
 
 const RewardsRouter = Router();
 
-RewardsRouter.get("/", authAdmin, rewardsController.getAll);
+RewardsRouter.get("/", rewardsController.getAll);
 
 // productRouter.get('/:id', authAdmin, ProductController.get );
 

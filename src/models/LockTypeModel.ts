@@ -119,8 +119,8 @@ export const search = async (props: any, page: number = 1) => {
   let i = 1;
   for (const [key, value] of Object.entries(props)) {
     if (!value) continue;
-    querys.push(camleToSnake(key) + " LIKE " + "$" + i);
-    values.push("%" + value);
+    querys.push(camleToSnake(key) + " ILIKE " + "$" + i);
+    values.push("%" + value + "%");
     i++;
   }
 
