@@ -520,3 +520,20 @@ export const userSettings2: RequestHandler = async (req, res, next) => {
     next(e);
   }
 };
+
+
+export const userSettings3: RequestHandler = async (req, res, next) => {
+  try {
+    const id = req.body.user.id;
+
+		const deviceIds = req.body.deviceIds
+
+    const result = await UserModel.updateSettings3({id, deviceIds});
+
+    return res.status(200).send(new Result(true, "updated settings to user"));
+  } catch (e) {
+    next(e);
+  }
+
+}
+

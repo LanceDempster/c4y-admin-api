@@ -284,7 +284,6 @@ const updateSettings1 = async ({
 };
 
 const updateSettings2 = async ({ id }: { id: number }) => {
-
   const { rows } = await query(
     `SELECT product_code FROM user_product where user_id = $1`,
     [id],
@@ -311,6 +310,22 @@ const updateSettings2 = async ({ id }: { id: number }) => {
   return true;
 };
 
+const updateSettings3 = async ({
+  id,
+  deviceIds,
+}: {
+  id: number;
+  deviceIds: number[];
+}) => {
+  const queryText = `INSERT INTO user_device_type (user_id, device_type) values ($1, $2) RETURNING *`;
+
+  deviceIds.forEach(async (deviceId) => {
+    await query(queryText, [id, deviceId]);
+  });
+
+  return true;
+};
+
 const UserModel = {
   create,
   getById,
@@ -327,6 +342,7 @@ const UserModel = {
   getSettings,
   updateSettings1,
   updateSettings2,
+  updateSettings3,
 };
 
 export default UserModel;

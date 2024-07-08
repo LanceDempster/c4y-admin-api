@@ -13,7 +13,7 @@ import {DeviceTypeUpdateSchema} from "../schemas/DeviceTypeUpdate";
 const DeviceTypeRouter= Router();
 
 
-DeviceTypeRouter.get('/', authAdmin, DeviceTypeController.getAll);
+DeviceTypeRouter.get('/', DeviceTypeController.getAll);
 
 // productRouter.get('/:id', authAdmin, ProductController.get );
 
