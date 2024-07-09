@@ -582,3 +582,32 @@ export const userSettings6: RequestHandler = async (req, res, next) => {
   }
 
 }
+
+export const userSettings7: RequestHandler = async (req, res, next) => {
+  try {
+    const id = req.body.user.id;
+
+		const toysIds = req.body.toysIds
+
+    const result = await UserModel.updateSettings7({id, toysIds});
+
+    return res.status(200).send(new Result(true, "updated settings to user"));
+  } catch (e) {
+    next(e);
+  }
+}
+
+export const userSettings8: RequestHandler = async (req, res, next) => {
+  try {
+    const id = req.body.user.id;
+
+		const maximum = req.body.maximum
+		const minimum = req.body.minimum
+
+    const result = await UserModel.updateSettings8({id, maximum, minimum});
+
+    return res.status(200).send(new Result(true, "updated settings to user"));
+  } catch (e) {
+    next(e);
+  }
+}

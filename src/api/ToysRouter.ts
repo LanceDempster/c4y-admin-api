@@ -36,7 +36,7 @@ const upload = multer({
 
 const ToysRouter = Router();
 
-ToysRouter.get("/", authAdmin, ToysController.getAll);
+ToysRouter.get("/", ToysController.getAll);
 
 // productRouter.get('/:id', authAdmin, ProductController.get );
 

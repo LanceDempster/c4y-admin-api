@@ -65,4 +65,8 @@ userRouter.post("/userSettings/5", authUser, UserController.userSettings5)
 
 userRouter.post("/userSettings/6", authUser, UserController.userSettings6)
 
+userRouter.post("/userSettings/7", authUser, UserController.userSettings7)
+
+userRouter.post("/userSettings/8", authUser, UserController.userSettings8)
+
 export default userRouter;

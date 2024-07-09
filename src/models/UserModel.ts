@@ -390,6 +390,45 @@ const updateSettings6 = async ({
   return true;
 };
 
+const updateSettings7 = async ({
+  id,
+  toysIds,
+}: {
+  id: number;
+  toysIds: number[];
+}) => {
+  const queryText = `update user_settings set product_setup_status = 7 where user_id = $1 RETURNING *`;
+
+  await query(queryText, [id]);
+
+  const queryText2 = `INSERT INTO user_toys (user_id, toy_id) values ($1, $2) RETURNING *`;
+
+  toysIds.forEach(async (toyId) => {
+    await query(queryText2, [id, toyId]);
+  });
+
+  return true;
+};
+
+const updateSettings8 = async ({
+  id,
+  maximum,
+  minimum,
+}: {
+  id: number;
+  maximum: number;
+  minimum: number;
+}) => {
+  const queryText = `update user_settings set 
+				product_setup_status = 8, 
+					min_time = $3, max_time = 
+					$2 where user_id = $1 RETURNING *`;
+
+  await query(queryText, [id, maximum, minimum]);
+
+  return true;
+};
+
 const UserModel = {
   create,
   getById,
@@ -410,6 +449,8 @@ const UserModel = {
   updateSettings4,
   updateSettings5,
   updateSettings6,
+  updateSettings7,
+  updateSettings8,
 };
 
 export default UserModel;
