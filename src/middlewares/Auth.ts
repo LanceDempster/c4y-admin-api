@@ -13,8 +13,6 @@ export const authUser = async (
   try {
     const token = req.header("Authorization")?.replace("Bearer ", "");
 
-		console.log(req)
-
     if (!token) {
       return next(new NotAuthorized("Unauthorized"));
     }

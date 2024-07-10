@@ -429,6 +429,56 @@ const updateSettings8 = async ({
   return true;
 };
 
+const updateSettings9 = async ({
+  id,
+  keyStorage,
+}: {
+  id: number;
+  keyStorage: number;
+}) => {
+  const queryText = `update user_settings set 
+				product_setup_status = 9, 
+					key_storage = $2 where user_id = $1 RETURNING *`;
+
+  await query(queryText, [id, keyStorage]);
+
+  return true;
+};
+
+const updateSettings10 = async ({
+  id,
+  fileLocation,
+}: {
+  id: number;
+  fileLocation: string;
+}) => {
+
+  const queryText = `update user_settings set 
+				product_setup_status = 10, 
+					user_url = $2 where user_id = $1 RETURNING *`;
+
+  await query(queryText, [id, fileLocation]);
+
+  return true;
+};
+
+const updateSettings11 = async ({
+  id,
+  fileLocation,
+}: {
+  id: number;
+  fileLocation: string;
+}) => {
+
+  const queryText = `update user_settings set 
+				product_setup_status = 11, 
+					avatar_url = $2 where user_id = $1 RETURNING *`;
+
+  await query(queryText, [id, fileLocation]);
+
+  return true;
+};
+
 const UserModel = {
   create,
   getById,
@@ -451,6 +501,9 @@ const UserModel = {
   updateSettings6,
   updateSettings7,
   updateSettings8,
+  updateSettings9,
+  updateSettings10,
+  updateSettings11,
 };
 
 export default UserModel;

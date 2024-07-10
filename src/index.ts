@@ -2,7 +2,6 @@ import express, {json} from "express";
 import {globalErrorHandler} from "./middlewares/handlers/GlobalErrorHandler";
 import userRouter from "./api/UserRouter";
 import adminRouter from "./api/AdminRouter";
-import {sendMail} from "./utils/email";
 import cors from 'cors'
 import productRouter from "./api/ProductRouter";
 
@@ -26,6 +25,7 @@ import DeviceBreakInRouter from "./api/DeviceBreakInRouter";
 import ToysRouter from "./api/ToysRouter";
 import PunishmentsRouter from "./api/PunishmentsRouter";
 import RewardsRouter from "./api/RewardsRouter";
+import KeyStorageRouter from "./api/KeyStorageRouter";
 
 console.log('ENV:' + process.env.NODE_ENV);
 
@@ -69,6 +69,9 @@ app.use('/challenge', ChallengeRouter);
 app.use('/toys', ToysRouter);
 app.use('/rewards', RewardsRouter);
 app.use('/punishments', PunishmentsRouter);
+
+// third phase
+app.use('/key_storage', KeyStorageRouter);
 
 // --------------------------------------------
 

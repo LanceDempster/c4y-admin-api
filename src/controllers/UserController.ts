@@ -16,9 +16,9 @@ import { AccountStatus } from "../enum/AccountStatus";
 import { sendMail } from "../utils/email";
 import { Token } from "../types/Token";
 import { ChangePassword } from "../schemas/changePasswordSchema";
-import { UserProductSearch } from "../schemas/UserProductSearch";
 import { UserProductFull } from "../interfaces/UserProductFull";
 import UserProductModel from "../models/UserProductModel";
+import { verify } from "jsonwebtoken";
 
 export const login: RequestHandler = async (req, res, next) => {
   try {
@@ -350,8 +350,7 @@ export const getUserProducts: RequestHandler<{ id: string }> = async (
 
 export const getMyProducts: RequestHandler = async (req, res, next) => {
   try {
-
-		const id = req.body.user.id
+    const id = req.body.user.id;
 
     let [userProducts, count] = await UserModel.getUserProducts(
       id,
@@ -514,7 +513,7 @@ export const userSettings2: RequestHandler = async (req, res, next) => {
   try {
     const id = req.body.user.id;
 
-    const result = await UserModel.updateSettings2({id});
+    const result = await UserModel.updateSettings2({ id });
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
@@ -522,92 +521,161 @@ export const userSettings2: RequestHandler = async (req, res, next) => {
   }
 };
 
-
 export const userSettings3: RequestHandler = async (req, res, next) => {
   try {
     const id = req.body.user.id;
 
-		const deviceIds = req.body.deviceIds
+    const deviceIds = req.body.deviceIds;
 
-    const result = await UserModel.updateSettings3({id, deviceIds});
+    const result = await UserModel.updateSettings3({ id, deviceIds });
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
     next(e);
   }
-
-}
+};
 
 export const userSettings4: RequestHandler = async (req, res, next) => {
   try {
     const id = req.body.user.id;
 
-		const lockIds = req.body.lockIds
+    const lockIds = req.body.lockIds;
 
-    const result = await UserModel.updateSettings4({id, lockIds});
+    const result = await UserModel.updateSettings4({ id, lockIds });
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
     next(e);
   }
-
-}
+};
 
 export const userSettings5: RequestHandler = async (req, res, next) => {
   try {
     const id = req.body.user.id;
 
-		const rewardsIds = req.body.rewardIds
+    const rewardsIds = req.body.rewardIds;
 
-    const result = await UserModel.updateSettings5({id, rewardsIds});
+    const result = await UserModel.updateSettings5({ id, rewardsIds });
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
     next(e);
   }
-
-}
+};
 
 export const userSettings6: RequestHandler = async (req, res, next) => {
   try {
     const id = req.body.user.id;
 
-		const punishmentsIds = req.body.punishmentIds
+    const punishmentsIds = req.body.punishmentIds;
 
-    const result = await UserModel.updateSettings6({id, punishmentsIds});
+    const result = await UserModel.updateSettings6({ id, punishmentsIds });
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
     next(e);
   }
-
-}
+};
 
 export const userSettings7: RequestHandler = async (req, res, next) => {
   try {
     const id = req.body.user.id;
 
-		const toysIds = req.body.toysIds
+    const toysIds = req.body.toysIds;
 
-    const result = await UserModel.updateSettings7({id, toysIds});
+    const result = await UserModel.updateSettings7({ id, toysIds });
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
     next(e);
   }
-}
+};
 
 export const userSettings8: RequestHandler = async (req, res, next) => {
   try {
     const id = req.body.user.id;
 
-		const maximum = req.body.maximum
-		const minimum = req.body.minimum
+    const maximum = req.body.maximum;
+    const minimum = req.body.minimum;
 
-    const result = await UserModel.updateSettings8({id, maximum, minimum});
+    const result = await UserModel.updateSettings8({ id, maximum, minimum });
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
     next(e);
   }
-}
+};
+
+export const userSettings9: RequestHandler = async (req, res, next) => {
+  try {
+    const id = req.body.user.id;
+
+    const keyStorage = req.body.keyStorageId;
+
+    const result = await UserModel.updateSettings9({ id, keyStorage });
+
+    return res.status(200).send(new Result(true, "updated settings to user"));
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const userSettings10: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const id = user.id;
+
+		// @ts-ignore
+    const fileLocation = req?.file?.location;
+
+    // @ts-ignore
+    const result = await UserModel.updateSettings10({ id, fileLocation });
+
+    return res.status(200).send(new Result(true, "updated settings to user"));
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const userSettings11: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const id = user.id;
+
+		// @ts-ignore
+    const fileLocation = req?.file?.location;
+
+    // @ts-ignore
+    const result = await UserModel.updateSettings11({ id, fileLocation });
+
+    return res.status(200).send(new Result(true, "updated settings to user"));
+  } catch (e) {
+    next(e);
+  }
+};
