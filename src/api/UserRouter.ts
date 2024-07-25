@@ -62,6 +62,12 @@ userRouter.post(
 
 userRouter.get("/settings", authUser, UserController.getUserSettings);
 
+userRouter.get("/get-user-devices", authUser, UserController.getUserDevices);
+userRouter.get("/get-user-locks", authUser, UserController.getUserLocks);
+userRouter.get("/get-user-rewards", authUser, UserController.getUserRewards);
+userRouter.get("/get-user-punishments", authUser, UserController.getUserPunishments);
+userRouter.get("/get-user-toys", authUser, UserController.getUserToys);
+
 userRouter.get("/profile", authUser, UserController.getProfile);
 
 userRouter.get(

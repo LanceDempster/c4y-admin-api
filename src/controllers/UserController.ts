@@ -19,6 +19,11 @@ import { ChangePassword } from "../schemas/changePasswordSchema";
 import { UserProductFull } from "../interfaces/UserProductFull";
 import UserProductModel from "../models/UserProductModel";
 import { verify } from "jsonwebtoken";
+import { DeviceType } from "../interfaces/DeviceType";
+import { LockType } from "../interfaces/LockType";
+import { Punishment } from "../interfaces/Punishment";
+import { Reward } from "../interfaces/Reward";
+import { Toy } from "../interfaces/Toy";
 
 export const login: RequestHandler = async (req, res, next) => {
   try {
@@ -348,6 +353,181 @@ export const getUserProducts: RequestHandler<{ id: string }> = async (
   }
 };
 
+export const getUserToys: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    let query = {};
+    Object.assign(query, req.query);
+
+    const id = req.body.user.id;
+
+    let userToys = await UserModel.getUserToys(id);
+
+    // if(count === -1) count = await UserModel.count();
+
+    if (userToys === undefined) {
+      res.status(200).send(new Result(true, "User has no toys"));
+    } else {
+      res.status(200).send(
+        new Result(
+          true,
+          "",
+          userToys.map((x: Toy) => {
+            return {
+              ...x,
+            };
+          }),
+        ),
+      );
+    }
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getUserPunishments: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    let query = {};
+    Object.assign(query, req.query);
+
+    const id = req.body.user.id;
+
+    let userPunishments = await UserModel.getUserPunishments(id);
+
+    // if(count === -1) count = await UserModel.count();
+
+    if (userPunishments === undefined) {
+      res.status(200).send(new Result(true, "User has no punishments"));
+    } else {
+      res.status(200).send(
+        new Result(
+          true,
+          "",
+          userPunishments.map((x: Punishment) => {
+            return {
+              ...x,
+            };
+          }),
+        ),
+      );
+    }
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getUserRewards: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    let query = {};
+    Object.assign(query, req.query);
+
+    const id = req.body.user.id;
+
+    let userRewards = await UserModel.getUserRewards(id);
+
+    // if(count === -1) count = await UserModel.count();
+
+    if (userRewards === undefined) {
+      res.status(200).send(new Result(true, "User has no rewards"));
+    } else {
+      res.status(200).send(
+        new Result(
+          true,
+          "",
+          userRewards.map((x: Reward) => {
+            return {
+              ...x,
+            };
+          }),
+        ),
+      );
+    }
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getUserLocks: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    let query = {};
+    Object.assign(query, req.query);
+
+    const id = req.body.user.id;
+
+    let userLocks = await UserModel.getUserLocks(id);
+
+    // if(count === -1) count = await UserModel.count();
+
+    if (userLocks === undefined) {
+      res.status(200).send(new Result(true, "User has no locks"));
+    } else {
+      res.status(200).send(
+        new Result(
+          true,
+          "",
+          userLocks.map((x: LockType) => {
+            return {
+              ...x,
+            };
+          }),
+        ),
+      );
+    }
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getUserDevices: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    let query = {};
+    Object.assign(query, req.query);
+
+    const id = req.body.user.id;
+
+    let userDevices = await UserModel.getUserDevices(id);
+
+    // if(count === -1) count = await UserModel.count();
+
+    if (userDevices === undefined) {
+      res.status(200).send(new Result(true, "User has no devices"));
+    } else {
+      res.status(200).send(
+        new Result(
+          true,
+          "",
+          userDevices.map((x: DeviceType) => {
+            return {
+              ...x,
+            };
+          }),
+        ),
+      );
+    }
+  } catch (e) {
+    next(e);
+  }
+};
+
 export const getMyProducts: RequestHandler = async (req, res, next) => {
   try {
     const id = req.body.user.id;
@@ -638,7 +818,7 @@ export const userSettings10: RequestHandler = async (req, res, next) => {
 
     const id = user.id;
 
-		// @ts-ignore
+    // @ts-ignore
     const fileLocation = req?.file?.location;
 
     // @ts-ignore
@@ -668,7 +848,7 @@ export const userSettings11: RequestHandler = async (req, res, next) => {
 
     const id = user.id;
 
-		// @ts-ignore
+    // @ts-ignore
     const fileLocation = req?.file?.location;
 
     // @ts-ignore

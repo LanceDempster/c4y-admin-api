@@ -124,19 +124,25 @@ export const search = async (props: any, page: number = 1) => {
 
   for (const [key, value] of Object.entries(props)) {
     if (!value) continue;
-    querys.push(camleToSnake(key) + " ILIKE " + "$" + i);
-    values.push("%" + value + "%");
+
+    if (key === "id") {
+        querys.push(camleToSnake(key) + " = " + "$" + i);
+        values.push(value);
+    } else {
+      querys.push(camleToSnake(key) + " ILIKE " + "$" + i);
+      values.push("%" + value + "%");
+    }
+
     i++;
   }
 
   let queryText = `
-    SELECT key_storage.*, 
+    SELECT key_storage.*,
            count(*) OVER () AS count
     FROM key_storage
-    ${querys.length ? "WHERE " + querys.join(" AND ") : ""}
+      ${querys.length ? "WHERE " + querys.join(" AND ") : ""}
     ORDER BY key_storage.id ASC
-    LIMIT 10
-    OFFSET (($${i} - 1) * 10)
+    LIMIT 10 OFFSET (($${i} - 1) * 10)
   `;
 
   if (page < 1) page = 1;

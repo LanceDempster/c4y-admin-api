@@ -62,6 +62,7 @@ export const updateById = async (id: number, newProps: any) => {
   for (const [key, value] of Object.entries(newProps)) {
     if (value === "") {
     } else if (!value) continue;
+    if (key === "user" || key === "token") continue;
     querys.push(camleToSnake(key) + "=" + "$" + i);
     values.push(value);
     i++;

@@ -1,4 +1,9 @@
 import { query } from "../db";
+import { DeviceType } from "../interfaces/DeviceType";
+import { LockType } from "../interfaces/LockType";
+import { Punishment } from "../interfaces/Punishment";
+import { Reward } from "../interfaces/Reward";
+import { Toy } from "../interfaces/Toy";
 import { User } from "../interfaces/User";
 import { UserProductFull } from "../interfaces/UserProductFull";
 
@@ -101,13 +106,16 @@ export const updateById = async (id: number = 0, newProps: any) => {
 
   let i = 2;
   for (const [key, value] of Object.entries(newProps)) {
-    if (!value) continue;
+    if (value === "") {
+    } else if (!value) continue;
+    if (key === "user" || key === "token") continue;
+
     querys.push(camleToSnake(key) + "=" + "$" + i);
     values.push(value);
     i++;
   }
 
-  const queryText = `UPDATE users
+  const queryText = `UPDATE users 
                        SET ${querys.join(",")}
                        WHERE id = $1 RETURNING *`;
 
@@ -285,27 +293,39 @@ const updateSettings1 = async ({
 
 const updateSettings2 = async ({ id }: { id: number }) => {
   const { rows } = await query(
-    `SELECT product_code FROM user_product where user_id = $1`,
+    `SELECT product_code FROM user_product WHERE user_id = $1`,
     [id],
   );
 
-  const queryText = `update user_settings set product_setup_status = 2 where user_id = $1 RETURNING *`;
+  // Check if the user already has a diary entry
+  const { rowCount } = await query(`SELECT 1 FROM dairy WHERE user_id = $1`, [
+    id,
+  ]);
 
-  await query(queryText, [id]);
+  if (rowCount === 0) {
+    const { rows } = await query(
+      `SELECT product_code FROM user_product where user_id = $1`,
+      [id],
+    );
 
-  const queryText2 = `
+    const queryText = `update user_settings set product_setup_status = 2 where user_id = $1 RETURNING *`;
+
+    await query(queryText, [id]);
+
+    const queryText2 = `
 	INSERT INTO dairy 
 		(user_id, created_date, title, entry, type, product)
 		VALUES ($1, $2, $3, $4, $5, $6)`;
 
-  await query(queryText2, [
-    id,
-    new Date(),
-    "Diary Started",
-    "The day the user setup his diary",
-    "c",
-    rows[0]["product_code"],
-  ]);
+    await query(queryText2, [
+      id,
+      new Date(),
+      "Diary Started",
+      "The day the user setup his diary",
+      "c",
+      rows[0]["product_code"],
+    ]);
+  }
 
   return true;
 };
@@ -317,6 +337,10 @@ const updateSettings3 = async ({
   id: number;
   deviceIds: number[];
 }) => {
+  // Delete current user devices
+  const deleteQueryText = `DELETE FROM user_device_type WHERE user_id = $1`;
+  await query(deleteQueryText, [id]);
+
   const queryText = `update user_settings set product_setup_status = 3 where user_id = $1 RETURNING *`;
 
   await query(queryText, [id]);
@@ -337,6 +361,10 @@ const updateSettings4 = async ({
   id: number;
   lockIds: number[];
 }) => {
+  // Delete current user devices
+  const deleteQueryText = `DELETE FROM user_lock_type WHERE user_id = $1`;
+  await query(deleteQueryText, [id]);
+
   const queryText = `update user_settings set product_setup_status = 4 where user_id = $1 RETURNING *`;
 
   await query(queryText, [id]);
@@ -357,6 +385,10 @@ const updateSettings5 = async ({
   id: number;
   rewardsIds: number[];
 }) => {
+  // Delete current user devices
+  const deleteQueryText = `DELETE FROM user_rewards WHERE user_id = $1`;
+  await query(deleteQueryText, [id]);
+
   const queryText = `update user_settings set product_setup_status = 5 where user_id = $1 RETURNING *`;
 
   await query(queryText, [id]);
@@ -377,6 +409,10 @@ const updateSettings6 = async ({
   id: number;
   punishmentsIds: number[];
 }) => {
+  // Delete current user devices
+  const deleteQueryText = `DELETE FROM user_punishments WHERE user_id = $1`;
+  await query(deleteQueryText, [id]);
+
   const queryText = `update user_settings set product_setup_status = 6 where user_id = $1 RETURNING *`;
 
   await query(queryText, [id]);
@@ -397,6 +433,10 @@ const updateSettings7 = async ({
   id: number;
   toysIds: number[];
 }) => {
+  // Delete current user devices
+  const deleteQueryText = `DELETE FROM user_toys WHERE user_id = $1`;
+  await query(deleteQueryText, [id]);
+
   const queryText = `update user_settings set product_setup_status = 7 where user_id = $1 RETURNING *`;
 
   await query(queryText, [id]);
@@ -452,7 +492,6 @@ const updateSettings10 = async ({
   id: number;
   fileLocation: string;
 }) => {
-
   const queryText = `update user_settings set 
 				product_setup_status = 10, 
 					user_url = $2 where user_id = $1 RETURNING *`;
@@ -469,7 +508,6 @@ const updateSettings11 = async ({
   id: number;
   fileLocation: string;
 }) => {
-
   const queryText = `update user_settings set 
 				product_setup_status = 11, 
 					avatar_url = $2 where user_id = $1 RETURNING *`;
@@ -477,6 +515,66 @@ const updateSettings11 = async ({
   await query(queryText, [id, fileLocation]);
 
   return true;
+};
+
+const getUserDevices = async (id: string) => {
+  const { rows } = await query(
+    `SELECT * FROM user_device_type 
+				left join device_type on user_device_type.device_type = device_type.id WHERE user_id = $1`,
+    [id],
+  );
+
+  if (!rows[0]) return undefined;
+
+  return rows.map((x) => recursiveToCamel(x) as DeviceType);
+};
+
+const getUserLocks = async (id: string) => {
+  const { rows } = await query(
+    `SELECT * FROM user_lock_type 
+				left join lock_type on user_lock_type.lock_type_id = lock_type.id WHERE user_id = $1`,
+    [id],
+  );
+
+  if (!rows[0]) return undefined;
+
+  return rows.map((x) => recursiveToCamel(x) as LockType);
+};
+
+const getUserRewards = async (id: string) => {
+  const { rows } = await query(
+    `SELECT * FROM user_rewards
+				left join rewards on user_rewards.reward_id = rewards.id WHERE user_id = $1`,
+    [id],
+  );
+
+  if (!rows[0]) return undefined;
+
+  return rows.map((x) => recursiveToCamel(x) as Reward);
+};
+
+const getUserPunishments = async (id: string) => {
+  const { rows } = await query(
+    `SELECT * FROM user_punishments
+				left join punishments on user_punishments.punishment_id = punishments.id WHERE user_id = $1`,
+    [id],
+  );
+
+  if (!rows[0]) return undefined;
+
+  return rows.map((x) => recursiveToCamel(x) as Punishment);
+};
+
+const getUserToys = async (id: string) => {
+  const { rows } = await query(
+    `SELECT * FROM user_toys
+				left join toys on user_toys.toy_id = toys.id WHERE user_id = $1`,
+    [id],
+  );
+
+  if (!rows[0]) return undefined;
+
+  return rows.map((x) => recursiveToCamel(x) as Toy);
 };
 
 const UserModel = {
@@ -493,6 +591,11 @@ const UserModel = {
   count,
   getUserProducts,
   getSettings,
+  getUserDevices,
+  getUserLocks,
+  getUserRewards,
+  getUserPunishments,
+  getUserToys,
   updateSettings1,
   updateSettings2,
   updateSettings3,

@@ -33,10 +33,10 @@ export const getAll: RequestHandler = async (req, res, next) => {
   try {
     let query = {};
     Object.assign(query, req.query);
-    const { name, description, level, page }: KeyStorageSearch = query;
+    const { id, name, description, level, page }: KeyStorageSearch = query;
 
     let [keys, count] = await KeyStorageModal.search(
-      { name, description, level },
+      { id, name, description, level },
       page,
     );
 
