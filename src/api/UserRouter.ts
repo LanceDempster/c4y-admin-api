@@ -81,6 +81,8 @@ userRouter.get("/products", authUser, UserController.getMyProducts);
 
 userRouter.get("/products/:id", authAdmin, UserController.getUserProducts);
 
+userRouter.get("/diary", authUser, UserController.getDiary);
+
 userRouter.post(
   "/products/create",
   authAdmin,

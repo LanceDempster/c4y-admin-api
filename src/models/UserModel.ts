@@ -577,6 +577,19 @@ const getUserToys = async (id: string) => {
   return rows.map((x) => recursiveToCamel(x) as Toy);
 };
 
+const getDiary = async (date: string , id: string) => {
+  const { rows } = await query(
+      `SELECT * FROM dairy
+				WHERE date_trunc('day', dairy.created_date) = $1 and user_id = $2
+      `,
+      [date, id],
+  );
+
+  if (!rows[0]) return undefined;
+
+  return rows.map((x) => recursiveToCamel(x) as any);
+};
+
 const UserModel = {
   create,
   getById,
@@ -596,6 +609,7 @@ const UserModel = {
   getUserRewards,
   getUserPunishments,
   getUserToys,
+  getDiary,
   updateSettings1,
   updateSettings2,
   updateSettings3,
