@@ -1,41 +1,41 @@
-import { Router } from "express";
-import { bodyValidation, queryValidation } from "../middlewares/Validation";
-import { LoginSchema } from "../schemas/Login";
+import {Router} from "express";
+import {bodyValidation, queryValidation} from "../middlewares/Validation";
+import {LoginSchema} from "../schemas/Login";
 import * as UserController from "../controllers/UserController";
-import { UserResgisterSchema } from "../schemas/UserResgister";
-import { ForgotPasswordSchema } from "../schemas/ForgotPassword";
-import { ResetPasswordSchema } from "../schemas/ResetPassword";
-import { UserSearchSchema } from "../schemas/UserSearch";
-import { authAdmin, authUser } from "../middlewares/Auth";
-import { UserUpdateSchema } from "../schemas/UserUpdate";
-import { ChangePasswordSchema } from "../schemas/changePasswordSchema";
+import {UserResgisterSchema} from "../schemas/UserResgister";
+import {ForgotPasswordSchema} from "../schemas/ForgotPassword";
+import {ResetPasswordSchema} from "../schemas/ResetPassword";
+import {UserSearchSchema} from "../schemas/UserSearch";
+import {authAdmin, authUser} from "../middlewares/Auth";
+import {UserUpdateSchema} from "../schemas/UserUpdate";
+import {ChangePasswordSchema} from "../schemas/changePasswordSchema";
 
 import multer from "multer";
-import { fromEnv } from "@aws-sdk/credential-providers"; // ES6 import
+import {fromEnv} from "@aws-sdk/credential-providers"; // ES6 import
 
 import crypto from "crypto";
 
-import { S3Client } from "@aws-sdk/client-s3";
+import {S3Client} from "@aws-sdk/client-s3";
 import multerS3 from "multer-s3";
 
 const s3Client = new S3Client({
-  region: "eu-west-2",
-  credentials: fromEnv(),
+    region: "eu-west-2",
+    credentials: fromEnv(),
 });
 
 const bucketName = `c4ylifestyle`;
 
 const upload = multer({
-  storage: multerS3({
-    s3: s3Client,
-    bucket: bucketName,
-    metadata: function (req, file, cb) {
-      cb(null, { fieldName: file.fieldname });
-    },
-    key: function (req, file, cb) {
-      cb(null, crypto.randomUUID());
-    },
-  }),
+    storage: multerS3({
+        s3: s3Client,
+        bucket: bucketName,
+        metadata: function (req, file, cb) {
+            cb(null, {fieldName: file.fieldname});
+        },
+        key: function (req, file, cb) {
+            cb(null, crypto.randomUUID());
+        },
+    }),
 });
 
 const userRouter = Router();
@@ -43,21 +43,21 @@ const userRouter = Router();
 userRouter.post("/login", bodyValidation(LoginSchema), UserController.login);
 
 userRouter.post(
-  "/register",
-  bodyValidation(UserResgisterSchema),
-  UserController.register,
+    "/register",
+    bodyValidation(UserResgisterSchema),
+    UserController.register,
 );
 
 userRouter.post(
-  "/forgot-password",
-  bodyValidation(ForgotPasswordSchema),
-  UserController.forgotPassword,
+    "/forgot-password",
+    bodyValidation(ForgotPasswordSchema),
+    UserController.forgotPassword,
 );
 
 userRouter.post(
-  "/reset-password",
-  bodyValidation(ResetPasswordSchema),
-  UserController.resetPassword,
+    "/reset-password",
+    bodyValidation(ResetPasswordSchema),
+    UserController.resetPassword,
 );
 
 userRouter.get("/settings", authUser, UserController.getUserSettings);
@@ -71,10 +71,10 @@ userRouter.get("/get-user-toys", authUser, UserController.getUserToys);
 userRouter.get("/profile", authUser, UserController.getProfile);
 
 userRouter.get(
-  "/",
-  queryValidation(UserSearchSchema),
-  authAdmin,
-  UserController.getAll,
+    "/",
+    queryValidation(UserSearchSchema),
+    authAdmin,
+    UserController.getAll,
 );
 
 userRouter.get("/products", authUser, UserController.getMyProducts);
@@ -82,17 +82,20 @@ userRouter.get("/products", authUser, UserController.getMyProducts);
 userRouter.get("/products/:id", authAdmin, UserController.getUserProducts);
 
 userRouter.get("/diary", authUser, UserController.getDiary);
+userRouter.post("/diary", authUser, UserController.addDiaryItem);
+userRouter.put("/diary", authUser, UserController.updateDiaryItem);
+userRouter.delete("/diary/:id", authUser, UserController.deleteDiaryItem);
 
 userRouter.post(
-  "/products/create",
-  authAdmin,
-  UserController.createUserProduct,
+    "/products/create",
+    authAdmin,
+    UserController.createUserProduct,
 );
 
 userRouter.delete(
-  "/products/:userid/:productid",
-  authAdmin,
-  UserController.deleteUserProduct,
+    "/products/:userid/:productid",
+    authAdmin,
+    UserController.deleteUserProduct,
 );
 
 userRouter.get("/active", authAdmin, UserController.getAllActiveCount);
@@ -100,10 +103,10 @@ userRouter.get("/active", authAdmin, UserController.getAllActiveCount);
 userRouter.get("/:id", authAdmin, UserController.get);
 
 userRouter.post(
-  "/create",
-  authAdmin,
-  bodyValidation(UserResgisterSchema),
-  UserController.create,
+    "/create",
+    authAdmin,
+    bodyValidation(UserResgisterSchema),
+    UserController.create,
 );
 
 userRouter.post("/activate/:id", authAdmin, UserController.activate);
@@ -111,52 +114,42 @@ userRouter.post("/activate/:id", authAdmin, UserController.activate);
 userRouter.post("/disable/:id", authAdmin, UserController.disable);
 
 userRouter.post(
-  "/change-password",
-  authAdmin,
-  bodyValidation(ChangePasswordSchema),
-  UserController.changePassword,
+    "/change-password",
+    authAdmin,
+    bodyValidation(ChangePasswordSchema),
+    UserController.changePassword,
 );
 
 userRouter.put(
-  "/:id",
-  authAdmin,
-  bodyValidation(UserUpdateSchema),
-  UserController.update,
+    "/:id",
+    authAdmin,
+    bodyValidation(UserUpdateSchema),
+    UserController.update,
 );
 
 userRouter.delete("/:id", authAdmin, UserController.deleteUser);
 
 // user settings form steps
 userRouter.post("/userSettings/1", authUser, UserController.userSettings1);
-
 userRouter.post("/userSettings/2", authUser, UserController.userSettings2);
-
 userRouter.post("/userSettings/3", authUser, UserController.userSettings3);
-
 userRouter.post("/userSettings/4", authUser, UserController.userSettings4);
-
 userRouter.post("/userSettings/5", authUser, UserController.userSettings5);
-
 userRouter.post("/userSettings/6", authUser, UserController.userSettings6);
-
 userRouter.post("/userSettings/7", authUser, UserController.userSettings7);
-
 userRouter.post("/userSettings/8", authUser, UserController.userSettings8);
-
 userRouter.post("/userSettings/9", authUser, UserController.userSettings9);
-
 userRouter.post(
-  "/userSettings/10",
-  authUser,
-  upload.single("profile_picture"),
-  UserController.userSettings10,
+    "/userSettings/10",
+    authUser,
+    upload.single("profile_picture"),
+    UserController.userSettings10,
 );
-
 userRouter.post(
-  "/userSettings/11",
-  authUser,
-  upload.single("avatar_picture"),
-  UserController.userSettings11,
+    "/userSettings/11",
+    authUser,
+    upload.single("avatar_picture"),
+    UserController.userSettings11,
 );
 
 export default userRouter;

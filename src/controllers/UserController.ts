@@ -24,6 +24,8 @@ import {LockType} from "../interfaces/LockType";
 import {Punishment} from "../interfaces/Punishment";
 import {Reward} from "../interfaces/Reward";
 import {Toy} from "../interfaces/Toy";
+import {query} from "../db";
+import {DiaryType} from "../interfaces/DiaryType";
 
 export const login: RequestHandler = async (req, res, next) => {
     try {
@@ -155,6 +157,84 @@ export const create: RequestHandler = async (req, res, next) => {
                 id: result.id,
             }),
         );
+    } catch (e) {
+        next(e);
+    }
+};
+
+export const addDiaryItem: RequestHandler = async (req, res, next) => {
+    try {
+        const userId = req.body.user.id;
+
+        const {rows} = await query(
+            `SELECT user_product.product_code
+             FROM user_product
+             WHERE user_product.user_id = ($1)
+             limit 1
+            `,
+            [userId],
+        );
+
+        const diaryData = req.body as { title: string, entry: string };
+
+        const diary: DiaryType = {
+            createdDate: new Date(),
+            title: diaryData.title,
+            entry: diaryData.entry,
+            type: 'u',
+            productCode: rows[0].product_code,
+            userId: userId
+        };
+
+        const result = await UserModel.addDiary(diary);
+
+        if (result === 1) {
+            return res.status(200).send(
+                new Result(true, "Diary created."),
+            );
+        } else {
+            return res.status(400).send(
+                new Result(true, "Diary failed try again later."),
+            );
+        }
+    } catch (e) {
+        next(e);
+    }
+};
+
+export const updateDiaryItem: RequestHandler = async (req, res, next) => {
+    try {
+        const userId = req.body.user.id;
+
+        const diaryData = req.body as { title: string, entry: string, diaryId: string };
+
+        const result = await UserModel.updateDiary(diaryData.title, diaryData.entry, diaryData.diaryId, userId);
+
+        if (result === 1) {
+            return res.status(200).send(
+                new Result(true, "Diary updated."),
+            );
+        } else {
+            return res.status(400).send(
+                new Result(true, "Diary failed to update."),
+            );
+        }
+    } catch (e) {
+        next(e);
+    }
+};
+
+export const deleteDiaryItem: RequestHandler<{ id: string }> = async (
+    req,
+    res,
+    next,
+) => {
+    try {
+        const {id} = req.params;
+
+        await UserModel.deleteDiary(~~+id);
+
+        return res.status(200).send(new Result(true, `Diary with Id:${id} deleted`));
     } catch (e) {
         next(e);
     }
