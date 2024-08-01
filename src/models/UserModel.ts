@@ -7,6 +7,9 @@ import {Toy} from "../interfaces/Toy";
 import {User} from "../interfaces/User";
 import {UserProductFull} from "../interfaces/UserProductFull";
 import {DiaryType} from "../interfaces/DiaryType";
+import {compare, hash} from "bcrypt";
+import {isValidPassword} from "../utils/helperFunctions";
+import {Ticket} from "../interfaces/Ticket";
 
 export const create = async (user: User) => {
     const queryText =
@@ -295,6 +298,41 @@ const updateSettings1 = async ({
     return true;
 };
 
+const updateSettings1v2 = async ({
+                                     community,
+                                     gameMessages,
+                                     marketingMessages,
+                                     keyHolder,
+                                     userStories,
+                                     id,
+                                 }: {
+    community: boolean;
+    gameMessages: boolean;
+    marketingMessages: boolean;
+    keyHolder: boolean;
+    userStories: boolean;
+    id: number;
+}) => {
+    const queryText = `UPDATE user_settings
+                       SET community          = $2,
+                           game_messages      = $3,
+                           marketing_messages = $4,
+                           keyholder          = $5,
+                           user_story         = $6
+                       WHERE user_id = $1 RETURNING *`;
+
+    const {rows} = await query(queryText, [
+        id,
+        community,
+        gameMessages,
+        marketingMessages,
+        keyHolder,
+        userStories,
+    ]);
+
+    return true;
+};
+
 const updateSettings2 = async ({id}: { id: number }) => {
     const {rows} = await query(
         `SELECT product_code
@@ -564,6 +602,38 @@ const updateSettings11 = async ({
     return true;
 };
 
+const updateProfilePicture = async ({
+                                        id,
+                                        fileLocation,
+                                    }: {
+    id: number;
+    fileLocation: string;
+}) => {
+    const queryText = `update user_settings
+                       set user_url = $2
+                       where user_id = $1 RETURNING *`;
+
+    await query(queryText, [id, fileLocation]);
+
+    return true;
+};
+
+const updateAvatarPicture = async ({
+                                       id,
+                                       fileLocation,
+                                   }: {
+    id: number;
+    fileLocation: string;
+}) => {
+    const queryText = `update user_settings
+                       set avatar_url = $2
+                       where user_id = $1 RETURNING *`;
+
+    await query(queryText, [id, fileLocation]);
+
+    return true;
+};
+
 const getUserDevices = async (id: string) => {
     const {rows} = await query(
         `SELECT *
@@ -576,6 +646,22 @@ const getUserDevices = async (id: string) => {
     if (!rows[0]) return undefined;
 
     return rows.map((x) => recursiveToCamel(x) as DeviceType);
+};
+
+const getUserTickets = async (id: string) => {
+    const {rows} = await query(
+        `SELECT tickets.*, ticket_status.name as ticket_status_name
+         FROM tickets
+                  left join ticket_status on tickets.ticket_status = ticket_status.id
+         WHERE user_id = $1
+         order by ticket_status
+        `,
+        [id],
+    );
+
+    if (!rows[0]) return undefined;
+
+    return rows.map((x) => recursiveToCamel(x) as Ticket);
 };
 
 const getUserLocks = async (id: string) => {
@@ -660,6 +746,27 @@ const addDiary = async (diary: DiaryType) => {
     }
 };
 
+const addTicket = async (
+    userId: number,
+    userEmail: string,
+    title: string,
+    description: string,
+    category: number
+) => {
+    if (await query(
+        `INSERT INTO tickets (user_id, user_email, ticket_title, description, ticket_category_id, ticket_priority_id,
+                              ticket_status)
+         VALUES ($1, $2, $3, $4, $5,
+                 (SELECT id FROM ticket_priority WHERE name = 'Medium'),
+                 (SELECT id FROM ticket_status WHERE name = 'Open'));`,
+        [userId, userEmail, title, description, category]
+    )) {
+        return 1;
+    } else {
+        return -1;
+    }
+};
+
 const updateDiary = async (title: string, entry: string, diaryId: string, userId: string) => {
     if (await query(
         "UPDATE dairy SET title = $1, entry = $2 where id = $3 and user_id = $4", [title, entry, diaryId, userId]
@@ -675,6 +782,101 @@ export const deleteDiary = async (id: number) => {
     return;
 };
 
+const updateUserProfile = async ({
+                                     id,
+                                     firstName,
+                                     lastName,
+                                     gender,
+                                     dateOfBirth,
+                                     country,
+                                     timezone,
+                                 }: {
+    id: number;
+    firstName: string,
+    lastName: string,
+    gender: string,
+    dateOfBirth: string,
+    country: string,
+    timezone: string,
+}) => {
+    const queryText = `update users
+                       set first_name    = $2,
+                           last_name     = $3,
+                           gender        = $4,
+                           date_of_birth = $5,
+                           country       = $6,
+                           timezone      = $7
+                       where id = $1 RETURNING *`;
+
+    await query(queryText, [id, firstName, lastName, gender, dateOfBirth, country, timezone]);
+
+    return true;
+};
+
+const userChangePassword = async ({
+                                      id,
+                                      oldPassword,
+                                      newPassword
+                                  }: {
+    id: number;
+    oldPassword: string,
+    newPassword: string
+}) => {
+    const {rows} = await query(`select password
+                                from users
+                                where id = $1`, [id])
+
+    if (!await compare(oldPassword, rows[0]["password"])) {
+        throw new Error("Wrong password");
+    }
+
+    let passwordValidity = isValidPassword(newPassword);
+
+    if (!passwordValidity["isValid"]) {
+        throw new Error(passwordValidity["message"]);
+    }
+
+    newPassword = await hash(newPassword, 10);
+
+    let res = await query(`update users
+                           set password = $2
+                           where id = $1 RETURNING *`, [id, newPassword])
+
+    return true
+}
+
+const toggleStatus = async ({
+                                userId,
+                                ticketId
+                            }: {
+    userId: number;
+    ticketId: number;
+}) => {
+
+    console.log(userId)
+    console.log(ticketId)
+
+    const queryText = `
+        WITH current_status AS (SELECT ts.name
+                                FROM tickets t
+                                         JOIN ticket_status ts ON t.ticket_status = ts.id
+                                WHERE t.user_id = $1
+                                  AND t.id = $2),
+             status_update AS (SELECT id
+                               FROM ticket_status
+                               WHERE name = (CASE
+                                                 WHEN (SELECT name FROM current_status) = 'Closed' THEN 'Open'
+                                                 ELSE 'Closed'
+                                   END))
+        UPDATE tickets
+        SET ticket_status = (SELECT id FROM status_update)
+        WHERE user_id = $1
+          AND id = $2 RETURNING *`;
+
+    await query(queryText, [userId, ticketId]);
+
+    return true;
+}
 
 const UserModel = {
     create,
@@ -710,6 +912,14 @@ const UserModel = {
     updateSettings9,
     updateSettings10,
     updateSettings11,
+    updateUserProfile,
+    updateProfilePicture,
+    updateAvatarPicture,
+    userChangePassword,
+    updateSettings1v2,
+    getUserTickets,
+    addTicket,
+    toggleStatus
 };
 
 export default UserModel;

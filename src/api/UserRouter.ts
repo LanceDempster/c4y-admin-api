@@ -68,7 +68,26 @@ userRouter.get("/get-user-rewards", authUser, UserController.getUserRewards);
 userRouter.get("/get-user-punishments", authUser, UserController.getUserPunishments);
 userRouter.get("/get-user-toys", authUser, UserController.getUserToys);
 
+userRouter.get("/get-user-tickets", authUser, UserController.getUserTickets);
+userRouter.post("/add-user-ticket", authUser, UserController.addUserTicket);
+userRouter.patch("/toggle-user-ticket-status", authUser, UserController.toggleTicketStatus);
+
 userRouter.get("/profile", authUser, UserController.getProfile);
+userRouter.post("/profile", authUser, UserController.updateProfile);
+
+userRouter.post("/user-change-password", authUser, UserController.userChangePassword);
+
+userRouter.post("/update-profile-picture",
+    authUser,
+    upload.single("profile_picture"),
+    UserController.updateProfilePicture
+);
+
+userRouter.post("/update-avatar-picture",
+    authUser,
+    upload.single("avatar_picture"),
+    UserController.updateAvatarPicture
+);
 
 userRouter.get(
     "/",
@@ -126,6 +145,8 @@ userRouter.put(
     bodyValidation(UserUpdateSchema),
     UserController.update,
 );
+
+userRouter.post("/update-user-preferences", authUser, UserController.userUpdatePreferences);
 
 userRouter.delete("/:id", authAdmin, UserController.deleteUser);
 

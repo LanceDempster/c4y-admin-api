@@ -2,14 +2,14 @@ import {Router} from "express";
 import {authAdmin} from "../middlewares/Auth";
 import * as TicketCategoryController from "../controllers/TicketCategoryController";
 import {bodyValidation} from "../middlewares/Validation";
-import { TicketCategoryCreateSchema } from "../schemas/TicketCategoryCreate";
-import { TicketCategoryUpdateSchema } from "../schemas/TicketCategoryUpdate";
+import {TicketCategoryCreateSchema} from "../schemas/TicketCategoryCreate";
+import {TicketCategoryUpdateSchema} from "../schemas/TicketCategoryUpdate";
 
 
 const ticketCategoryRouter = Router();
 
 
-ticketCategoryRouter.get('/', authAdmin, TicketCategoryController.getAll);
+ticketCategoryRouter.get('/', TicketCategoryController.getAll);
 
 // productRouter.get('/:id', authAdmin, ProductController.get );
 

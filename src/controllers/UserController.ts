@@ -26,6 +26,7 @@ import {Reward} from "../interfaces/Reward";
 import {Toy} from "../interfaces/Toy";
 import {query} from "../db";
 import {DiaryType} from "../interfaces/DiaryType";
+import {Ticket} from "../interfaces/Ticket";
 
 export const login: RequestHandler = async (req, res, next) => {
     try {
@@ -650,6 +651,41 @@ export const getUserDevices: RequestHandler<{ id: string }> = async (
     }
 };
 
+export const getUserTickets: RequestHandler<{ id: string }> = async (
+    req,
+    res,
+    next,
+) => {
+    try {
+        let query = {};
+        Object.assign(query, req.query);
+
+        const id = req.body.user.id;
+
+        let userTickets = await UserModel.getUserTickets(id);
+
+        // if(count === -1) count = await UserModel.count();
+
+        if (userTickets === undefined) {
+            res.status(200).send(new Result(true, "User has no tickets"));
+        } else {
+            res.status(200).send(
+                new Result(
+                    true,
+                    "",
+                    userTickets.map((x: Ticket) => {
+                        return {
+                            ...x,
+                        };
+                    }),
+                ),
+            );
+        }
+    } catch (e) {
+        next(e);
+    }
+};
+
 export const getMyProducts: RequestHandler = async (req, res, next) => {
     try {
         const id = req.body.user.id;
@@ -678,6 +714,27 @@ export const getMyProducts: RequestHandler = async (req, res, next) => {
         next(e);
     }
 };
+
+export const userUpdatePreferences: RequestHandler = async (req, res, next) => {
+    try {
+        const id = req.body.user.id;
+
+        const userSettings1Data = {...req.body, id: id} as {
+            community: boolean;
+            gameMessages: boolean;
+            marketingMessages: boolean;
+            keyHolder: boolean;
+            userStories: boolean;
+            id: number;
+        };
+
+        const result = await UserModel.updateSettings1v2(userSettings1Data);
+
+        return res.status(200).send(new Result(true, "updated settings to user"));
+    } catch (e) {
+        next(e);
+    }
+}
 
 export const createUserProduct: RequestHandler = async (req, res, next) => {
     try {
@@ -774,6 +831,81 @@ export const getProfile: RequestHandler<{ id: string }> = async (
 ) => {
     try {
         return res.status(200).send(new Result(true, "", req.body.user));
+    } catch (e) {
+        next(e);
+    }
+};
+
+
+export const updateProfilePicture: RequestHandler = async (req, res, next) => {
+    try {
+        const token = req.header("Authorization")?.replace("Bearer ", "");
+
+        if (!token) {
+            return next(new NotAuthorized("Unauthorized"));
+        }
+
+        const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+        const user = await UserModel.getById(decoded.id);
+
+        if (!user || decoded.role !== "USER") {
+            return next(new NotAuthorized("Invalid token"));
+        }
+
+        const id = user.id;
+
+        // @ts-ignore
+        const fileLocation = req?.file?.location;
+
+        // @ts-ignore
+        const result = await UserModel.updateProfilePicture({id, fileLocation});
+
+        return res.status(200).send(new Result(true, "updated user profile picture."));
+    } catch (e) {
+        next(e);
+    }
+};
+
+export const updateAvatarPicture: RequestHandler = async (req, res, next) => {
+    try {
+        const token = req.header("Authorization")?.replace("Bearer ", "");
+
+        if (!token) {
+            return next(new NotAuthorized("Unauthorized"));
+        }
+
+        const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+        const user = await UserModel.getById(decoded.id);
+
+        if (!user || decoded.role !== "USER") {
+            return next(new NotAuthorized("Invalid token"));
+        }
+
+        const id = user.id;
+
+        // @ts-ignore
+        const fileLocation = req?.file?.location;
+
+        // @ts-ignore
+        const result = await UserModel.updateAvatarPicture({id, fileLocation});
+
+        return res.status(200).send(new Result(true, "updated user profile picture."));
+    } catch (e) {
+        next(e);
+    }
+};
+
+export const updateProfile: RequestHandler = async (req, res, next) => {
+    try {
+        const id = req.body.user.id;
+
+        const {firstName, lastName, gender, dateOfBirth, timezone, country} = req.body;
+
+        UserModel.updateUserProfile({id, firstName, lastName, gender, dateOfBirth, timezone, country});
+
+        return res.status(200).send(new Result(true, "updated profile to user"));
     } catch (e) {
         next(e);
     }
@@ -981,3 +1113,87 @@ export const userSettings11: RequestHandler = async (req, res, next) => {
         next(e);
     }
 };
+
+
+export const userChangePassword: RequestHandler = async (req, res, next) => {
+
+    try {
+        const token = req.header("Authorization")?.replace("Bearer ", "");
+
+        if (!token) {
+            return next(new NotAuthorized("Unauthorized"));
+        }
+
+        const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+        const user = await UserModel.getById(decoded.id);
+
+        if (!user || decoded.role !== "USER") {
+            return next(new NotAuthorized("Invalid token"));
+        }
+
+        const oldPassword = req.body.oldPassword;
+        const newPassword = req.body.newPassword;
+        const id = user.id;
+
+        const result = await UserModel.userChangePassword({id, oldPassword, newPassword});
+
+        return res.status(200).send(new Result(true, "updated settings to user"));
+    } catch (e) {
+        next(e);
+    }
+
+};
+
+
+export const addUserTicket: RequestHandler = async (req, res, next) => {
+    try {
+        const token = req.header("Authorization")?.replace("Bearer ", "");
+
+        if (!token) {
+            return next(new NotAuthorized("Unauthorized"));
+        }
+
+        const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+        const user = await UserModel.getById(decoded.id);
+
+        if (!user || decoded.role !== "USER") {
+            return next(new NotAuthorized("Invalid token"));
+        }
+
+        const id = user.id;
+        const email = user.email;
+
+        let {title, description, categoryId} = req.body
+
+        // @ts-ignore
+        const result = await UserModel.addTicket(id, email, title, description, categoryId);
+
+        return res.status(200).send(new Result(true, "Updated ticket to user"));
+    } catch (e) {
+        next(e);
+    }
+};
+
+export const toggleTicketStatus: RequestHandler = async (req, res, next) => {
+    try {
+        const token = req.header("Authorization")?.replace("Bearer ", "");
+
+        if (!token) {
+            return next(new NotAuthorized("Unauthorized"));
+        }
+
+        const userId = req.body.user.id;
+
+        const {ticketId} = req.body;
+
+        // @ts-ignore
+        const result = await UserModel.toggleStatus({userId, ticketId});
+
+        return res.status(200).send(new Result(true, "Updated ticket to user"));
+    } catch (e) {
+        next(e);
+    }
+};
+
