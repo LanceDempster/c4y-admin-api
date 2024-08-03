@@ -77,6 +77,8 @@ userRouter.post("/profile", authUser, UserController.updateProfile);
 
 userRouter.post("/user-change-password", authUser, UserController.userChangePassword);
 
+userRouter.post("/user-change-email", authUser, UserController.userChangeEmail);
+
 userRouter.post("/update-profile-picture",
     authUser,
     upload.single("profile_picture"),

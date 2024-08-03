@@ -16,6 +16,7 @@ export const create = async (user: User) => {
         "INSERT INTO users (\
         first_name, \
         last_name, \
+        username, \
         email, \
         password, \
         password_create_date, \
@@ -24,12 +25,14 @@ export const create = async (user: User) => {
         account_status, \
         account_create_date, \
         email_validation, \
+        timezone, \
         gender) \
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *";
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *";
 
     const {rows} = await query(queryText, [
         user.firstName,
         user.lastName,
+        user.username,
         user.email,
         user.password,
         user.passwordCreateDate,
@@ -38,6 +41,7 @@ export const create = async (user: User) => {
         user.accountStatus,
         user.accountCreateDate,
         user.emailValidation,
+        user.timeZone,
         user.gender,
     ]);
 
@@ -845,6 +849,25 @@ const userChangePassword = async ({
     return true
 }
 
+const userChangeEmail = async ({
+                                   id,
+                                   newEmail
+                               }: {
+    id: number;
+    newEmail: string,
+}) => {
+
+    let res = await query(`update users
+                           set email = $2
+                           where id = $1 RETURNING *`, [id, newEmail])
+
+
+    let res0 = await query(`INSERT INTO user_email_history (user_id, email)
+                            VALUES ($1, $2)`, [id, newEmail])
+
+    return true
+}
+
 const toggleStatus = async ({
                                 userId,
                                 ticketId
@@ -919,7 +942,8 @@ const UserModel = {
     updateSettings1v2,
     getUserTickets,
     addTicket,
-    toggleStatus
+    toggleStatus,
+    userChangeEmail,
 };
 
 export default UserModel;

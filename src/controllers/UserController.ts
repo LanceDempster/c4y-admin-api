@@ -93,6 +93,7 @@ export const register: RequestHandler = async (req, res, next) => {
             id: 0,
             firstName: userData.firstName,
             lastName: userData.lastName,
+            username: userData.username,
             email: userData.email,
             country: userData.country,
             dateOfBirth: userData.dateOfBirth,
@@ -102,6 +103,7 @@ export const register: RequestHandler = async (req, res, next) => {
             password: passwordHash,
             accountCreateDate: new Date(),
             passwordCreateDate: new Date(),
+            timeZone: userData.timeZone,
         };
 
         const result = await UserModel.create(user as User);
@@ -140,6 +142,7 @@ export const create: RequestHandler = async (req, res, next) => {
             id: 0,
             firstName: userData.firstName,
             lastName: userData.lastName,
+            username: userData.username,
             email: userData.email,
             country: userData.country,
             dateOfBirth: userData.dateOfBirth,
@@ -149,6 +152,7 @@ export const create: RequestHandler = async (req, res, next) => {
             password: passwordHash,
             accountCreateDate: new Date(),
             passwordCreateDate: new Date(),
+            timeZone: userData.timeZone,
         };
 
         const result = await UserModel.create(user as User);
@@ -1137,6 +1141,35 @@ export const userChangePassword: RequestHandler = async (req, res, next) => {
         const id = user.id;
 
         const result = await UserModel.userChangePassword({id, oldPassword, newPassword});
+
+        return res.status(200).send(new Result(true, "updated settings to user"));
+    } catch (e) {
+        next(e);
+    }
+
+};
+
+export const userChangeEmail: RequestHandler = async (req, res, next) => {
+
+    try {
+        const token = req.header("Authorization")?.replace("Bearer ", "");
+
+        if (!token) {
+            return next(new NotAuthorized("Unauthorized"));
+        }
+
+        const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+        const user = await UserModel.getById(decoded.id);
+
+        if (!user || decoded.role !== "USER") {
+            return next(new NotAuthorized("Invalid token"));
+        }
+
+        const newEmail = req.body.newEmail;
+        const id = user.id;
+
+        const result = await UserModel.userChangeEmail({id, newEmail});
 
         return res.status(200).send(new Result(true, "updated settings to user"));
     } catch (e) {
