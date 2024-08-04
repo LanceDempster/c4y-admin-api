@@ -927,8 +927,12 @@ const addUserGame = async ({userId, seconds}: { userId: number, seconds: number 
             [userId, 'In Game', 'Self Countdown', now, endDate, endDate]
         );
 
+        const timeDifference = Math.ceil((endDate.getTime() - now.getTime()) / 60_000);
+
         // Get the inserted game id
         const gameId = result.rows[0].id;
+
+        await query("INSERT INTO countdown_changes (game_id, delta) VALUES ($1, $2)", [gameId, timeDifference]);
 
         // Insert into dairy and use the game id
         await query(
