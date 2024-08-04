@@ -107,6 +107,12 @@ userRouter.post("/diary", authUser, UserController.addDiaryItem);
 userRouter.put("/diary", authUser, UserController.updateDiaryItem);
 userRouter.delete("/diary/:id", authUser, UserController.deleteDiaryItem);
 
+// routes related to in game actions
+userRouter.get("/get-user-game", authUser, UserController.getUserGame);
+userRouter.post("/add-user-game", authUser, UserController.addUserGame);
+userRouter.patch("/cancel-user-game", authUser, UserController.cancelUserGame);
+
+
 userRouter.post(
     "/products/create",
     authAdmin,

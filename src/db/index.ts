@@ -1,4 +1,4 @@
-import { Pool } from 'pg'
+import {Pool} from 'pg'
 
 const pool = new Pool();
 pool.on('connect', () => {
@@ -6,5 +6,5 @@ pool.on('connect', () => {
 })
 
 export const query = async (text: string, params: any) => {
-    return await pool.query(text, params ) 
+    return await pool.query(text, params)
 }

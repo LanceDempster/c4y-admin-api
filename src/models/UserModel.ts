@@ -876,9 +876,6 @@ const toggleStatus = async ({
     ticketId: number;
 }) => {
 
-    console.log(userId)
-    console.log(ticketId)
-
     const queryText = `
         WITH current_status AS (SELECT ts.name
                                 FROM tickets t
@@ -900,6 +897,75 @@ const toggleStatus = async ({
 
     return true;
 }
+
+const getUserGames = async ({userId}: { userId: number }) => {
+    const {rows} = await query(`select *
+                                from user_solo_games
+                                where user_id = $1
+                                  and game_status = 'In Game'`, [userId])
+
+    return rows;
+}
+const addUserGame = async ({userId, seconds}: { userId: number, seconds: number }) => {
+    try {
+        const {rows} = await query(
+            `SELECT product_code
+             FROM user_product
+             WHERE user_id = $1`,
+            [userId],
+        );
+
+        // Calculate the current timestamp and the timestamp after the given seconds
+        const now = new Date();
+        const endDate = new Date(now.getTime() + seconds * 1000);
+
+        // Insert into the database and get the id
+        const result = await query(
+            `INSERT INTO user_solo_games (user_id, game_status, game_type, start_date, end_date, original_end_date)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING id`,
+            [userId, 'In Game', 'Self Countdown', now, endDate, endDate]
+        );
+
+        // Get the inserted game id
+        const gameId = result.rows[0].id;
+
+        // Insert into dairy and use the game id
+        await query(
+            `INSERT Into dairy(user_id, created_date, title, entry, type, product, game_id)
+             values ($1, $2, $3, $4, $5, $6, $7)`,
+            [userId, new Date(), "Game Started", "Started Self-Managed game using the self entered countdown", 'c', rows[0]['product_code'], gameId]
+        );
+
+        return 1;
+    } catch (e) {
+        console.error('Rolling back transaction due to errors', e);
+        return -1;
+    }
+};
+
+const cancelUserGame = async ({userId, gameId}: { userId: number, gameId: number }) => {
+    const {rows} = await query(
+        `SELECT product_code
+         FROM user_product
+         WHERE user_id = $1`,
+        [userId],
+    );
+
+    await query(
+        `INSERT Into dairy(user_id, created_date, title, entry, type, product, game_id)
+         values ($1, $2, $3, $4, $5, $6, $7)`
+        , [userId, new Date(), "Game Canceled", "Canceled Self-Managed game using the cancel button", 'c', rows[0]['product_code'], gameId]
+    );
+
+    if (await query(
+        "UPDATE user_solo_games SET game_status = 'completed', game_success = false, total_lock_up_time = 0 where user_id = $1 and id = $2"
+        , [userId, gameId])) {
+        return 1;
+    } else {
+        return -1;
+    }
+};
 
 const UserModel = {
     create,
@@ -944,6 +1010,9 @@ const UserModel = {
     addTicket,
     toggleStatus,
     userChangeEmail,
+    getUserGames,
+    addUserGame,
+    cancelUserGame
 };
 
 export default UserModel;
