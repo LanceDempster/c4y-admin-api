@@ -10,6 +10,7 @@ import {DiaryType} from "../interfaces/DiaryType";
 import {compare, hash} from "bcrypt";
 import {isValidPassword} from "../utils/helperFunctions";
 import {Ticket} from "../interfaces/Ticket";
+import assert from "node:assert";
 
 export const create = async (user: User) => {
     const queryText =
@@ -906,7 +907,21 @@ const getUserGames = async ({userId}: { userId: number }) => {
 
     return rows;
 }
-const addUserGame = async ({userId, seconds}: { userId: number, seconds: number }) => {
+const addUserGame = async ({userId, seconds, minimumWheelPercentage, maximumWheelPercentage}: {
+    userId: number,
+    seconds: number,
+    minimumWheelPercentage: number,
+    maximumWheelPercentage: number
+}) => {
+    try {
+        assert(minimumWheelPercentage >= 10 && minimumWheelPercentage <= maximumWheelPercentage, "Minimum Wheel Percentage must be more than 10 and less than Max Wheel Percentage");
+        assert(maximumWheelPercentage <= 50 && maximumWheelPercentage >= minimumWheelPercentage, "Max Wheel Percentage must be less than 50 and more than Min Wheel Percentage");
+    } catch (e) {
+        console.error('Rolling back transaction due to errors', e);
+        return -1;
+    }
+
+
     try {
         const {rows} = await query(
             `SELECT product_code
@@ -921,10 +936,11 @@ const addUserGame = async ({userId, seconds}: { userId: number, seconds: number 
 
         // Insert into the database and get the id
         const result = await query(
-            `INSERT INTO user_solo_games (user_id, game_status, game_type, start_date, end_date, original_end_date)
-             VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO user_solo_games (user_id, game_status, game_type, start_date, end_date, original_end_date,
+                                          minimum_wheel_percentage, maximum_wheel_percentage)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING id`,
-            [userId, 'In Game', 'Self Countdown', now, endDate, endDate]
+            [userId, 'In Game', 'Self Countdown', now, endDate, endDate, minimumWheelPercentage, maximumWheelPercentage]
         );
 
         const timeDifference = Math.ceil((endDate.getTime() - now.getTime()) / 60_000);
@@ -971,6 +987,120 @@ const cancelUserGame = async ({userId, gameId}: { userId: number, gameId: number
     }
 };
 
+const generateWheelInstance = async ({gameId, type}: { gameId: number, type: number }) => {
+    const {rows} = await query(
+        `SELECT *
+         FROM game_wheel_instance
+         WHERE game_id = $1
+           AND created_date >= NOW() - INTERVAL '24 hours'`,
+        [gameId]
+    );
+
+    if (rows.length >= 1) {
+        throw new Error('You already have a wheel instance in the last 24 hours.');
+    }
+
+    switch (type) {
+        case 1:
+            const {rows} = await query(
+                `SELECT *
+                 FROM user_solo_games
+                 WHERE id = $1
+                 order by id desc
+                 limit 1`,
+                [gameId]
+            );
+
+            let start_date = new Date(rows[0]["start_date"]);
+            let original_end_date = new Date(rows[0]["original_end_date"]);
+
+            let min = rows[0]["minimum_wheel_percentage"];
+            let max = rows[0]["maximum_wheel_percentage"];
+
+            let amounts = [];
+
+            let diffInMilliSeconds = original_end_date.valueOf() - start_date.valueOf();
+
+            for (let i = 0; i < 5; i++) {
+                let percentage = min + Math.floor(Math.random() * (max - min))
+                let finalValue = Math.floor((diffInMilliSeconds / (1000 * 60)) * (percentage / 100))
+
+                console.log(finalValue)
+
+                amounts.push(
+                    finalValue
+                )
+            }
+
+
+            await query(
+                `INSERT Into game_wheel_instance(punishment_time1, punishment_time2, punishment_time3, punishment_time4,
+                                                 reward_time, game_id)
+                 values ($1, $2, $3, $4, $5, $6)`
+                , [...amounts, rows[0]["id"]]
+            );
+            break
+        case 2:
+
+            break
+    }
+
+    return 1;
+}
+
+
+const getWheelInstance = async ({gameId}: { gameId: string }) => {
+    const {rows} = await query(
+        `SELECT *
+         FROM game_wheel_instance
+         WHERE game_id = $1
+           AND created_date >= NOW() - INTERVAL '24 hours'`,
+        [gameId]
+    );
+
+    // If no game_wheel_instance is found, return an error
+    if (rows.length === 0) {
+        throw new Error('No wheel instance found for the given gameId in the last 24 hours.');
+    }
+
+    // If a game_wheel_instance is found, return the data
+    return rows[0];
+}
+
+
+const submitWheel = async ({gameId, amount, type}: { gameId: string, amount: string, type: number }) => {
+
+    switch (type) {
+        case 1:
+            await query(
+                `UPDATE game_wheel_instance
+                 SET status = 2
+                 WHERE game_id = $1`,
+                [gameId]
+            );
+
+            await query(
+                `UPDATE user_solo_games
+                 SET end_date = end_date + ($2 * INTERVAL '1 minute')
+                 WHERE id = $1`,
+                [gameId, amount]
+            );
+
+            await query(
+                "INSERT INTO countdown_changes (game_id, delta) VALUES ($1, $2)",
+                [gameId, amount]
+            );
+
+            break;
+        case 2:
+
+            break
+    }
+
+    return 1;
+}
+
+
 const UserModel = {
     create,
     getById,
@@ -1016,7 +1146,10 @@ const UserModel = {
     userChangeEmail,
     getUserGames,
     addUserGame,
-    cancelUserGame
+    cancelUserGame,
+    generateWheelInstance,
+    getWheelInstance,
+    submitWheel
 };
 
 export default UserModel;

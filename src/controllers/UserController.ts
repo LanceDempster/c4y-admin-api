@@ -1266,9 +1266,14 @@ export const addUserGame: RequestHandler = async (req, res, next) => {
         }
 
         const id = user.id;
-        const {seconds} = req.body
+        const {seconds, minimumWheelPercentage, maximumWheelPercentage} = req.body
 
-        const result = await UserModel.addUserGame({userId: id, seconds});
+        const result = await UserModel.addUserGame({
+            userId: id,
+            seconds,
+            minimumWheelPercentage,
+            maximumWheelPercentage
+        });
 
         return res.status(200).send(new Result(true, "Game started"));
     } catch (e) {
@@ -1304,3 +1309,78 @@ export const cancelUserGame: RequestHandler = async (req, res, next) => {
     }
 }
 
+
+export const generateWheelInstance: RequestHandler = async (req, res, next) => {
+    try {
+        const token = req.header("Authorization")?.replace("Bearer ", "");
+
+        if (!token) {
+            return next(new NotAuthorized("Unauthorized"));
+        }
+
+        const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+        const user = await UserModel.getById(decoded.id);
+
+        if (!user || decoded.role !== "USER") {
+            return next(new NotAuthorized("Invalid token"));
+        }
+
+        const gameId = req.body.gameId;
+        const type = req.body.type;
+
+        const result = await UserModel.generateWheelInstance({gameId, type});
+
+        return res.status(200).send(new Result(true, "Game wheel instance."));
+    } catch (e) {
+        next(e)
+    }
+}
+
+export const getWheelInstance: RequestHandler = async (req, res, next) => {
+    try {
+        const token = req.header("Authorization")?.replace("Bearer ", "");
+
+        if (!token) {
+            return next(new NotAuthorized("Unauthorized"));
+        }
+
+        const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+        const user = await UserModel.getById(decoded.id);
+
+        if (!user || decoded.role !== "USER") {
+            return next(new NotAuthorized("Invalid token"));
+        }
+
+        const {gameId} = req.params;
+
+        const result = await UserModel.getWheelInstance({gameId});
+
+        return res.status(200).send(new Result(true, "Wheel instance", result));
+    } catch (e) {
+        next(e)
+    }
+}
+
+export const submitWheel: RequestHandler = async (req, res, next) => {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+        return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+        return next(new NotAuthorized("Invalid token"));
+    }
+
+    const {gameId, amount} = req.body;
+
+    const result = await UserModel.submitWheel({gameId, amount, type: 1});
+
+    return res.status(200).send(new Result(true, "Wheel instance", result));
+}
