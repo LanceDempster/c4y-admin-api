@@ -4,21 +4,20 @@ import {UserResgister} from "../schemas/UserResgister";
 import UserModel from "../models/UserModel";
 import {compare, hash} from "bcrypt";
 import {User} from "../interfaces/User";
-import {sign, decode} from "jsonwebtoken";
+import {sign, verify} from "jsonwebtoken";
 import NotFound from "../errors/NotFound";
 import NotAuthorized from "../errors/NotAuthorized";
 import {ForgotPassword} from "../schemas/ForgotPassword";
 import BadRequest from "../errors/BadRequest";
 import {Result} from "../dto/Result";
 import {ResetPassword} from "../schemas/ResetPassword";
-import {UserSearch, UserSearchSchema} from "../schemas/UserSearch";
+import {UserSearch} from "../schemas/UserSearch";
 import {AccountStatus} from "../enum/AccountStatus";
 import {sendMail} from "../utils/email";
 import {Token} from "../types/Token";
 import {ChangePassword} from "../schemas/changePasswordSchema";
 import {UserProductFull} from "../interfaces/UserProductFull";
 import UserProductModel from "../models/UserProductModel";
-import {verify} from "jsonwebtoken";
 import {DeviceType} from "../interfaces/DeviceType";
 import {LockType} from "../interfaces/LockType";
 import {Punishment} from "../interfaces/Punishment";
@@ -1378,9 +1377,11 @@ export const submitWheel: RequestHandler = async (req, res, next) => {
         return next(new NotAuthorized("Invalid token"));
     }
 
-    const {gameId, amount} = req.body;
+    const {gameId, amount, accepted} = req.body;
 
-    const result = await UserModel.submitWheel({gameId, amount, type: 1});
+    console.log(accepted)
+
+    const result = await UserModel.submitWheel({gameId, amount, type: 1, accepted: accepted === '1', userId: user.id});
 
     return res.status(200).send(new Result(true, "Wheel instance", result));
 }

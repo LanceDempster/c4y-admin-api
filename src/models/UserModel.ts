@@ -1025,8 +1025,6 @@ const generateWheelInstance = async ({gameId, type}: { gameId: number, type: num
                 let percentage = min + Math.floor(Math.random() * (max - min))
                 let finalValue = Math.floor((diffInMilliSeconds / (1000 * 60)) * (percentage / 100))
 
-                console.log(finalValue)
-
                 amounts.push(
                     finalValue
                 )
@@ -1068,10 +1066,33 @@ const getWheelInstance = async ({gameId}: { gameId: string }) => {
 }
 
 
-const submitWheel = async ({gameId, amount, type}: { gameId: string, amount: string, type: number }) => {
+function convertMinutesToDHM(minutes: number) {
+    const days = Math.floor(minutes / (60 * 24));
+    minutes -= days * 60 * 24;
+    const hours = Math.floor(minutes / 60);
+    minutes -= hours * 60;
+    return `${days}D ${hours}H ${minutes}M`;
+}
+
+const submitWheel = async ({gameId, amount, type, accepted, userId}: {
+    gameId: string,
+    amount: string,
+    type: number,
+    accepted: boolean,
+    userId: number
+}) => {
+
+    const {rows} = await query(
+        `SELECT product_code
+         FROM user_product
+         WHERE user_id = $1`,
+        [userId],
+    );
 
     switch (type) {
         case 1:
+
+
             await query(
                 `UPDATE game_wheel_instance
                  SET status = 2
@@ -1079,17 +1100,37 @@ const submitWheel = async ({gameId, amount, type}: { gameId: string, amount: str
                 [gameId]
             );
 
+        {
+            accepted &&
             await query(
                 `UPDATE user_solo_games
                  SET end_date = end_date + ($2 * INTERVAL '1 minute')
                  WHERE id = $1`,
                 [gameId, amount]
             );
+        }
 
+        {
+            accepted &&
             await query(
                 "INSERT INTO countdown_changes (game_id, delta) VALUES ($1, $2)",
                 [gameId, amount]
             );
+        }
+
+        {
+            accepted ?
+                await query(
+                    "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                    [userId, new Date(), 'Accept wheel spin', `You have accepted your results from the wheel and changed the lock up time by ${convertMinutesToDHM(parseInt(amount))}`, 'c', rows[0].id, gameId]
+                )
+                :
+                await query(
+                    "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                    [userId, new Date(), 'Reject wheel spin', `You have rejected your results from the wheel by ${convertMinutesToDHM(parseInt(amount))}`, 'c', rows[0].id, gameId]
+                )
+        }
+
 
             break;
         case 2:
