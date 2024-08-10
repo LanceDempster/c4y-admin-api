@@ -1284,20 +1284,37 @@ const submitGame = async ({gameId, userId, acceptedExtraTime}: {
     userId: number,
     acceptedExtraTime: boolean
 }) => {
+    const {rows} = await query(
+        `SELECT product_code
+         FROM user_product
+         WHERE user_id = $1`,
+        [userId],
+    );
 
-
-    await query(
+    const {rows: updateRows} = await query(
         `UPDATE user_solo_games
          SET game_status        = 'completed',
              game_success       = true,
              total_lock_up_time = (EXTRACT(EPOCH FROM (original_end_date - start_date) +
                                                       (CASE WHEN $3 THEN NOW() - end_date ELSE INTERVAL '0' END)) / 60)
          WHERE id = $1
-           and user_id = $2`,
+           and user_id = $2 RETURNING total_lock_up_time`,
         [gameId, userId, acceptedExtraTime]
     );
 
 
+    await query(
+        "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [userId, new Date(), 'Self Managed Countdown completed', `Congratulations! Your Self-Managed Countdown game has ended in success.`, 'c', rows[0].id, gameId]
+    )
+
+
+    await query(
+        "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [userId, new Date(), 'Total lock up time increased', `Congratulations! total lock up time increased by ${updateRows[0].total_lock_up_time}.`, 'c', rows[0].id, gameId]
+    )
+
+    return 1;
 }
 
 

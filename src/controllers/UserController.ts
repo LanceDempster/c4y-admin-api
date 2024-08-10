@@ -1469,4 +1469,5 @@ export const submitGame: RequestHandler = async (req, res, next) => {
         }
     )
 
+    return res.status(200).send(new Result(true, "Game submitted", result));
 }
