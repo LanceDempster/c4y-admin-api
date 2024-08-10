@@ -1036,7 +1036,7 @@ const generateWheelInstance = async ({gameId, type, userId}: { gameId: number, t
 
             let diffInMilliSeconds = original_end_date.valueOf() - start_date.valueOf();
 
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 4; i++) {
                 let percentage = min + Math.floor(Math.random() * (max - min))
                 let finalValue = Math.floor((diffInMilliSeconds / (1000 * 60)) * (percentage / 100))
 
@@ -1047,19 +1047,19 @@ const generateWheelInstance = async ({gameId, type, userId}: { gameId: number, t
 
 
             await query(
-                `INSERT Into game_wheel_instance(punishment_time1, punishment_time2, punishment_time3, punishment_time4,
+                `INSERT Into game_wheel_instance(punishment_time1, punishment_time2, punishment_time3,
                                                  reward_time, game_id)
-                 values ($1, $2, $3, $4, $5, $6)`
+                 values ($1, $2, $3, $4, $5)`
                 , [...amounts, rows[0]["id"]]
             );
             break
         case 2:
             // Query to get punishment IDs
-            const punishmentQuery = 'SELECT punishment_id FROM user_punishments WHERE user_id = $1 ORDER BY RANDOM() LIMIT 4';
+            const punishmentQuery = 'SELECT punishment_id FROM user_punishments WHERE user_id = $1 ORDER BY RANDOM() LIMIT 3';
             const punishmentResult = await query(punishmentQuery, [userId]);
 
-            // Ensure we have exactly 4 punishments
-            if (punishmentResult.rows.length < 4) {
+            // Ensure we have exactly 3 punishments
+            if (punishmentResult.rows.length < 3) {
                 throw new Error('Not enough punishments found for the user.');
             }
 
@@ -1078,9 +1078,9 @@ const generateWheelInstance = async ({gameId, type, userId}: { gameId: number, t
 
             // Insert into game_wheel_instance
             const insertQuery = `
-                INSERT INTO game_wheel_instance (punishment1id, punishment2id, punishment3id, punishment4id, reward,
+                INSERT INTO game_wheel_instance (punishment1id, punishment2id, punishment3id, reward,
                                                  game_id)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                VALUES ($1, $2, $3, $4, $5)
             `;
             await query(insertQuery, [...punishments, reward, gameId]);
             break
@@ -1317,6 +1317,23 @@ const submitGame = async ({gameId, userId, acceptedExtraTime}: {
     return 1;
 }
 
+const toggleDailySpin = async ({dailySpin, gameId, userId}: {
+    dailySpin: boolean,
+    gameId: string,
+    userId: number,
+}) => {
+
+    await query(
+        `UPDATE user_solo_games
+         SET daily_spin = $3
+         WHERE id = $1
+           and user_id = $2`,
+        [gameId, userId, dailySpin]
+    );
+
+    return 1;
+}
+
 
 const UserModel = {
     create,
@@ -1369,7 +1386,8 @@ const UserModel = {
     submitWheel,
     userCheated,
     submitCheatingWheel,
-    submitGame
+    submitGame,
+    toggleDailySpin
 };
 
 export default UserModel;

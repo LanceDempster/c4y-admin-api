@@ -192,5 +192,7 @@ userRouter.post("/submit-cheating-wheel", authUser, UserController.submitCheatin
 
 userRouter.post("/submit-game", authUser, UserController.submitGame)
 
+userRouter.patch("/toggle-daily-spin", authUser, UserController.toggleDailySpin);
+
 
 export default userRouter;

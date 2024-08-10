@@ -1471,3 +1471,17 @@ export const submitGame: RequestHandler = async (req, res, next) => {
 
     return res.status(200).send(new Result(true, "Game submitted", result));
 }
+
+export const toggleDailySpin: RequestHandler = async (req, res, next) => {
+    const {gameId, dailySpin} = req.body;
+
+    const result = await UserModel.toggleDailySpin(
+        {
+            dailySpin: dailySpin === "1",
+            gameId,
+            userId: req.body.user.id,
+        }
+    )
+
+    return res.status(200).send(new Result(true, "Daily spin toggled", result));
+}
