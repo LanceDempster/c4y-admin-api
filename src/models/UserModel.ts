@@ -900,13 +900,28 @@ const toggleStatus = async ({
 }
 
 const getUserGames = async ({userId}: { userId: number }) => {
-    const {rows} = await query(`select *
+    const {rows} = await query(`select user_solo_games.*,
+                                       cheater_punishment.id as cheater_wheel_id,
+                                       p1.name               as punishment1Name,
+                                       p2.name               as punishment2Name,
+                                       p3.name               as punishment3Name,
+                                       p4.name               as punishment4Name,
+                                       p5.name               as punishment5Name
                                 from user_solo_games
+                                         left join cheater_punishment
+                                                   on user_solo_games.id = cheater_punishment.game_id and
+                                                      cheater_punishment.state = 1
+                                         left join punishments p1 on punishment1id = p1.id
+                                         left join punishments p2 on punishment2id = p2.id
+                                         left join punishments p3 on punishment3id = p3.id
+                                         left join punishments p4 on punishment4id = p4.id
+                                         left join punishments p5 on punishment5id = p5.id
                                 where user_id = $1
                                   and game_status = 'In Game'`, [userId])
 
     return rows;
 }
+
 const addUserGame = async ({userId, seconds, minimumWheelPercentage, maximumWheelPercentage}: {
     userId: number,
     seconds: number,
@@ -987,8 +1002,8 @@ const cancelUserGame = async ({userId, gameId}: { userId: number, gameId: number
     }
 };
 
-const generateWheelInstance = async ({gameId, type}: { gameId: number, type: number }) => {
-    const {rows} = await query(
+const generateWheelInstance = async ({gameId, type, userId}: { gameId: number, type: number, userId: number }) => {
+    const {rows: rows} = await query(
         `SELECT *
          FROM game_wheel_instance
          WHERE game_id = $1
@@ -1002,7 +1017,7 @@ const generateWheelInstance = async ({gameId, type}: { gameId: number, type: num
 
     switch (type) {
         case 1:
-            const {rows} = await query(
+            let {rows} = await query(
                 `SELECT *
                  FROM user_solo_games
                  WHERE id = $1
@@ -1039,7 +1054,35 @@ const generateWheelInstance = async ({gameId, type}: { gameId: number, type: num
             );
             break
         case 2:
+            // Query to get punishment IDs
+            const punishmentQuery = 'SELECT punishment_id FROM user_punishments WHERE user_id = $1 ORDER BY RANDOM() LIMIT 4';
+            const punishmentResult = await query(punishmentQuery, [userId]);
 
+            // Ensure we have exactly 4 punishments
+            if (punishmentResult.rows.length < 4) {
+                throw new Error('Not enough punishments found for the user.');
+            }
+
+            // Query to get reward ID
+            const rewardQuery = 'SELECT reward_id FROM user_rewards WHERE user_id = $1 ORDER BY RANDOM() LIMIT 1';
+            const rewardResult = await query(rewardQuery, [userId]);
+
+            // Ensure we have at least one reward
+            if (rewardResult.rows.length === 0) {
+                throw new Error('No rewards found for the user.');
+            }
+
+            // Extract punishment and reward IDs
+            const punishments = punishmentResult.rows.map(row => row.punishment_id);
+            const reward = rewardResult.rows[0].reward_id;
+
+            // Insert into game_wheel_instance
+            const insertQuery = `
+                INSERT INTO game_wheel_instance (punishment1id, punishment2id, punishment3id, punishment4id, reward,
+                                                 game_id)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            `;
+            await query(insertQuery, [...punishments, reward, gameId]);
             break
     }
 
@@ -1049,8 +1092,18 @@ const generateWheelInstance = async ({gameId, type}: { gameId: number, type: num
 
 const getWheelInstance = async ({gameId}: { gameId: string }) => {
     const {rows} = await query(
-        `SELECT *
+        `SELECT *,
+                p1.name as punishment1_name,
+                p2.name as punishment2_name,
+                p3.name as punishment3_name,
+                p4.name as punishment4_name,
+                r.name  as reward_name
          FROM game_wheel_instance
+                  left join punishments p1 on punishment1id = p1.id
+                  left join punishments p2 on punishment2id = p2.id
+                  left join punishments p3 on punishment3id = p3.id
+                  left join punishments p4 on punishment4id = p4.id
+                  left join rewards r on reward = r.id
          WHERE game_id = $1
            AND created_date >= NOW() - INTERVAL '24 hours'`,
         [gameId]
@@ -1058,7 +1111,7 @@ const getWheelInstance = async ({gameId}: { gameId: string }) => {
 
     // If no game_wheel_instance is found, return an error
     if (rows.length === 0) {
-        throw new Error('No wheel instance found for the given gameId in the last 24 hours.');
+        return -1;
     }
 
     // If a game_wheel_instance is found, return the data
@@ -1074,9 +1127,9 @@ function convertMinutesToDHM(minutes: number) {
     return `${days}D ${hours}H ${minutes}M`;
 }
 
-const submitWheel = async ({gameId, amount, type, accepted, userId}: {
+const submitWheel = async ({gameId, itemName, type, accepted, userId}: {
     gameId: string,
-    amount: string,
+    itemName: string,
     type: number,
     accepted: boolean,
     userId: number
@@ -1089,24 +1142,21 @@ const submitWheel = async ({gameId, amount, type, accepted, userId}: {
         [userId],
     );
 
+    await query(
+        `UPDATE game_wheel_instance
+         SET status = 2
+         WHERE game_id = $1`,
+        [gameId]
+    );
+
     switch (type) {
-        case 1:
-
-
-            await query(
-                `UPDATE game_wheel_instance
-                 SET status = 2
-                 WHERE game_id = $1`,
-                [gameId]
-            );
-
-        {
+        case 1: {
             accepted &&
             await query(
                 `UPDATE user_solo_games
                  SET end_date = end_date + ($2 * INTERVAL '1 minute')
                  WHERE id = $1`,
-                [gameId, amount]
+                [gameId, itemName]
             );
         }
 
@@ -1114,7 +1164,7 @@ const submitWheel = async ({gameId, amount, type, accepted, userId}: {
             accepted &&
             await query(
                 "INSERT INTO countdown_changes (game_id, delta) VALUES ($1, $2)",
-                [gameId, amount]
+                [gameId, itemName]
             );
         }
 
@@ -1122,23 +1172,132 @@ const submitWheel = async ({gameId, amount, type, accepted, userId}: {
             accepted ?
                 await query(
                     "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-                    [userId, new Date(), 'Accept wheel spin', `You have accepted your results from the wheel and changed the lock up time by ${convertMinutesToDHM(parseInt(amount))}`, 'c', rows[0].id, gameId]
+                    [userId, new Date(), 'Accepted wheel spin', `You have accepted your results from the wheel and changed the lock up time by ${convertMinutesToDHM(parseInt(itemName))}`, 'c', rows[0].id, gameId]
                 )
                 :
                 await query(
                     "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-                    [userId, new Date(), 'Reject wheel spin', `You have rejected your results from the wheel by ${convertMinutesToDHM(parseInt(amount))}`, 'c', rows[0].id, gameId]
+                    [userId, new Date(), 'Rejected wheel spin', `You have rejected your results from the wheel by ${convertMinutesToDHM(parseInt(itemName))}`, 'c', rows[0].id, gameId]
                 )
         }
 
 
             break;
-        case 2:
-
+        case 2: {
+            accepted ?
+                await query(
+                    "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                    [userId, new Date(), 'Accept wheel spin', `You have accepted your results from the wheel ${itemName}`, 'c', rows[0].id, gameId]
+                )
+                :
+                await query(
+                    "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                    [userId, new Date(), 'Reject wheel spin', `You have rejected your results from the wheel ${itemName}`, 'c', rows[0].id, gameId]
+                )
+        }
             break
     }
 
     return 1;
+}
+
+const userCheated = async ({gameId, userId}: { gameId: string, userId: number }) => {
+    const {rows} = await query(
+        `SELECT product_code
+         FROM user_product
+         WHERE user_id = $1`,
+        [userId],
+    );
+
+    // Query to get punishment IDs
+    const punishmentQuery = 'SELECT punishment_id FROM user_punishments WHERE user_id = $1 ORDER BY RANDOM() LIMIT 5';
+    const punishmentResult = await query(punishmentQuery, [userId]);
+
+    // Ensure we have exactly 4 punishments
+    if (punishmentResult.rows.length < 5) {
+        throw new Error('Not enough punishments found for the user.');
+    }
+
+    await query(
+        "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [userId, new Date(), "Cheated in countdown.", "You cheated in your self-managed Countdown game.", "c", rows[0].id, gameId]
+    );
+
+    const punishments = punishmentResult.rows.map(row => row.punishment_id);
+
+    await query(
+        `INSERT INTO cheater_punishment
+         (punishment1id, punishment2id, punishment3id, punishment4id, punishment5id,
+          game_id)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [...punishments, gameId]
+    )
+}
+
+
+const submitCheatingWheel = async ({gameId, cheaterWheelId, itemName, accepted, userId}: {
+    gameId: string,
+    cheaterWheelId: string,
+    itemName: string,
+    accepted: boolean,
+    userId: number
+}) => {
+
+    const {rows} = await query(
+        `SELECT product_code
+         FROM user_product
+         WHERE user_id = $1`,
+        [userId],
+    );
+
+    await query(
+        `UPDATE cheater_punishment
+         SET state = 2
+         WHERE id = $1`,
+        [cheaterWheelId]
+    );
+
+    await query(
+        `UPDATE user_solo_games
+         SET game_status = 'completed'
+         WHERE id = $1
+           and user_id = $2`,
+        [gameId, userId]
+    );
+
+    accepted ?
+        await query(
+            "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            [userId, new Date(), 'Accept cheating wheel spin', `You cheated in your self-managed countdown game and accepted your results from the wheel ${itemName}`, 'c', rows[0].id, gameId]
+        )
+        :
+        await query(
+            "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            [userId, new Date(), 'Reject cheating wheel spin', `You cheated in your self-managed countdown game and rejected your results from the wheel ${itemName}`, 'c', rows[0].id, gameId]
+        )
+
+    return 1;
+}
+
+const submitGame = async ({gameId, userId, acceptedExtraTime}: {
+    gameId: string,
+    userId: number,
+    acceptedExtraTime: boolean
+}) => {
+
+
+    await query(
+        `UPDATE user_solo_games
+         SET game_status        = 'completed',
+             game_success       = true,
+             total_lock_up_time = (EXTRACT(EPOCH FROM (original_end_date - start_date) +
+                                                      (CASE WHEN $3 THEN NOW() - end_date ELSE INTERVAL '0' END)) / 60)
+         WHERE id = $1
+           and user_id = $2`,
+        [gameId, userId, acceptedExtraTime]
+    );
+
+
 }
 
 
@@ -1190,7 +1349,10 @@ const UserModel = {
     cancelUserGame,
     generateWheelInstance,
     getWheelInstance,
-    submitWheel
+    submitWheel,
+    userCheated,
+    submitCheatingWheel,
+    submitGame
 };
 
 export default UserModel;

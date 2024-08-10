@@ -12,7 +12,6 @@ import {ChangePasswordSchema} from "../schemas/changePasswordSchema";
 
 import multer from "multer";
 import {fromEnv} from "@aws-sdk/credential-providers"; // ES6 import
-
 import crypto from "crypto";
 
 import {S3Client} from "@aws-sdk/client-s3";
@@ -185,6 +184,12 @@ userRouter.post("/generate-wheel-instance", authUser, UserController.generateWhe
 
 userRouter.get("/wheel-instance/:gameId", authUser, UserController.getWheelInstance);
 
-userRouter.post("/submit-wheel", authUser, UserController.submitWheel)
+userRouter.post("/submit-wheel", authUser, UserController.submitWheel);
+
+userRouter.post("/user-wheel-cheated", authUser, UserController.userCheated);
+
+userRouter.post("/submit-cheating-wheel", authUser, UserController.submitCheatingWheel);
+
+userRouter.post("/submit-game", authUser, UserController.submitGame)
 
 export default userRouter;

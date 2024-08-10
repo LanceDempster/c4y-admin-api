@@ -1325,10 +1325,11 @@ export const generateWheelInstance: RequestHandler = async (req, res, next) => {
             return next(new NotAuthorized("Invalid token"));
         }
 
+        const userId = user.id;
         const gameId = req.body.gameId;
         const type = req.body.type;
 
-        const result = await UserModel.generateWheelInstance({gameId, type});
+        const result = await UserModel.generateWheelInstance({gameId, type, userId});
 
         return res.status(200).send(new Result(true, "Game wheel instance."));
     } catch (e) {
@@ -1377,11 +1378,95 @@ export const submitWheel: RequestHandler = async (req, res, next) => {
         return next(new NotAuthorized("Invalid token"));
     }
 
-    const {gameId, amount, accepted} = req.body;
+    const {gameId, type, itemName, accepted} = req.body;
 
-    console.log(accepted)
-
-    const result = await UserModel.submitWheel({gameId, amount, type: 1, accepted: accepted === '1', userId: user.id});
+    const result = await UserModel.submitWheel({
+        gameId,
+        itemName,
+        type: type,
+        accepted: accepted === '1',
+        userId: user.id
+    });
 
     return res.status(200).send(new Result(true, "Wheel instance", result));
+}
+
+export const userCheated: RequestHandler = async (req, res, next) => {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+        return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+        return next(new NotAuthorized("Invalid token"));
+    }
+
+    const {gameId} = req.body;
+
+    const result = await UserModel.userCheated({
+        userId: user.id,
+        gameId,
+    });
+
+    return res.status(200).send(new Result(true, "Don't cheat", result));
+}
+
+export const submitCheatingWheel: RequestHandler = async (req, res, next) => {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+        return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+        return next(new NotAuthorized("Invalid token"));
+    }
+
+    const {cheaterWheelId, gameId, itemName, accepted} = req.body;
+
+    const result = await UserModel.submitCheatingWheel({
+        gameId,
+        cheaterWheelId,
+        itemName,
+        accepted: accepted === '1',
+        userId: user.id
+    });
+
+    return res.status(200).send(new Result(true, "Wheel instance", result));
+}
+
+export const submitGame: RequestHandler = async (req, res, next) => {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+        return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+        return next(new NotAuthorized("Invalid token"));
+    }
+
+    const {gameId, acceptedExtraTime} = req.body;
+
+    const result = await UserModel.submitGame(
+        {
+            gameId,
+            userId: user.id,
+            acceptedExtraTime
+        }
+    )
+
 }
