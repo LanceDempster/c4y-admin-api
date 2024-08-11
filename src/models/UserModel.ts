@@ -997,7 +997,12 @@ const cancelUserGame = async ({userId, gameId}: { userId: number, gameId: number
     }
 };
 
-const generateWheelInstance = async ({gameId, type, userId}: { gameId: number, type: number, userId: number }) => {
+const generateWheelInstance = async ({gameId, type, userId, size}: {
+    gameId: number,
+    type: number,
+    userId: number,
+    size: number
+}) => {
     const {rows: rows} = await query(
         `SELECT *
          FROM game_wheel_instance
@@ -1031,7 +1036,7 @@ const generateWheelInstance = async ({gameId, type, userId}: { gameId: number, t
 
             let diffInMilliSeconds = original_end_date.valueOf() - start_date.valueOf();
 
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < size - 1; i++) {
                 let percentage = min + Math.floor(Math.random() * (max - min))
                 let finalValue = Math.floor((diffInMilliSeconds / (1000 * 60)) * (percentage / 100))
 
@@ -1040,44 +1045,66 @@ const generateWheelInstance = async ({gameId, type, userId}: { gameId: number, t
                 )
             }
 
+            if (size === 5) {
+                await query(
+                    `INSERT Into game_wheel_instance(punishment_time1, punishment_time2, punishment_time3,
+                                                     reward_time1, game_id)
+                     values ($1, $2, $3, $4, $5)`
+                    , [...amounts, rows[0]["id"]]
+                );
+            } else if (size === 7) {
+                await query(
+                    `INSERT Into game_wheel_instance(punishment_time1, punishment_time2, punishment_time3,
+                                                     punishment_time4,
+                                                     reward_time1, reward_time2, game_id)
+                     values ($1, $2, $3, $4, $5, $6, $7)`
+                    , [...amounts, rows[0]["id"]]
+                );
+            }
 
-            await query(
-                `INSERT Into game_wheel_instance(punishment_time1, punishment_time2, punishment_time3,
-                                                 reward_time, game_id)
-                 values ($1, $2, $3, $4, $5)`
-                , [...amounts, rows[0]["id"]]
-            );
             break
         case 2:
             // Query to get punishment IDs
-            const punishmentQuery = 'SELECT punishment_id FROM user_punishments WHERE user_id = $1 ORDER BY RANDOM() LIMIT 3';
-            const punishmentResult = await query(punishmentQuery, [userId]);
+            const punishmentQuery = 'SELECT punishment_id FROM user_punishments WHERE user_id = $1 ORDER BY RANDOM() LIMIT $2';
+            const punishmentResult = await query(punishmentQuery, [userId, size === 7 ? 4 : 3]);
 
             // Ensure we have exactly 3 punishments
-            if (punishmentResult.rows.length < 3) {
+            if (punishmentResult.rows.length < 3 && size === 5 || punishmentResult.rows.length < 4 && size === 7) {
                 throw new Error('Not enough punishments found for the user.');
             }
 
             // Query to get reward ID
-            const rewardQuery = 'SELECT reward_id FROM user_rewards WHERE user_id = $1 ORDER BY RANDOM() LIMIT 1';
-            const rewardResult = await query(rewardQuery, [userId]);
+            const rewardQuery = 'SELECT reward_id FROM user_rewards WHERE user_id = $1 ORDER BY RANDOM() LIMIT $2';
+            const rewardResult = await query(rewardQuery, [userId, size === 5 ? 1 : 2]);
 
             // Ensure we have at least one reward
-            if (rewardResult.rows.length === 0) {
+            if (rewardResult.rows.length < 1 && size === 5 || rewardResult.rows.length < 2 && size === 7) {
                 throw new Error('No rewards found for the user.');
             }
 
             // Extract punishment and reward IDs
             const punishments = punishmentResult.rows.map(row => row.punishment_id);
-            const reward = rewardResult.rows[0].reward_id;
+            const reward = rewardResult.rows.map(row => row.reward_id);
 
-            // Insert into game_wheel_instance
-            const insertQuery = `
-                INSERT INTO game_wheel_instance (punishment1id, punishment2id, punishment3id, reward,
-                                                 game_id)
-                VALUES ($1, $2, $3, $4, $5)
-            `;
-            await query(insertQuery, [...punishments, reward, gameId]);
+            let insertQuery = '';
+
+            if (size === 5) {
+                insertQuery = `
+                    INSERT INTO game_wheel_instance (punishment1id, punishment2id, punishment3id, reward1id,
+                                                     game_id)
+                    VALUES ($1, $2, $3, $4, $5)
+                `;
+
+            } else if (size === 7) {
+                insertQuery = `
+                    INSERT INTO game_wheel_instance (punishment1id, punishment2id, punishment3id, punishment4id,
+                                                     reward1id, reward2id,
+                                                     game_id)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                `;
+            }
+
+            await query(insertQuery, [...punishments, ...reward, gameId]);
             break
     }
 
@@ -1092,13 +1119,15 @@ const getWheelInstance = async ({gameId}: { gameId: string }) => {
                 p2.name as punishment2_name,
                 p3.name as punishment3_name,
                 p4.name as punishment4_name,
-                r.name  as reward_name
+                r1.name as reward1_name,
+                r2.name as reward2_name
          FROM game_wheel_instance
                   left join punishments p1 on punishment1id = p1.id
                   left join punishments p2 on punishment2id = p2.id
                   left join punishments p3 on punishment3id = p3.id
                   left join punishments p4 on punishment4id = p4.id
-                  left join rewards r on reward = r.id
+                  left join rewards r1 on reward1id = r1.id
+                  left join rewards r2 on reward2id = r2.id
          WHERE game_id = $1
            AND created_date >= NOW() - INTERVAL '24 hours'`,
         [gameId]

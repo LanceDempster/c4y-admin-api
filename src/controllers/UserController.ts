@@ -1331,8 +1331,9 @@ export const generateWheelInstance: RequestHandler = async (req, res, next) => {
         const userId = user.id;
         const gameId = req.body.gameId;
         const type = req.body.type;
+        const size = req.body.size;
 
-        const result = await UserModel.generateWheelInstance({gameId, type, userId});
+        const result = await UserModel.generateWheelInstance({gameId, type, userId, size});
 
         return res.status(200).send(new Result(true, "Game wheel instance."));
     } catch (e) {
