@@ -1,6 +1,6 @@
 import {RequestHandler} from "express";
 import {LoginType} from "../schemas/Login";
-import {UserResgister} from "../schemas/UserResgister";
+import {UserResister} from "../schemas/UserResister";
 import UserModel from "../models/UserModel";
 import {compare, hash} from "bcrypt";
 import {User} from "../interfaces/User";
@@ -86,7 +86,7 @@ export const changePassword: RequestHandler = async (req, res, next) => {
 
 export const register: RequestHandler = async (req, res, next) => {
     try {
-        const userData = req.body as UserResgister;
+        const userData = req.body as UserResister;
 
         const passwordHash = await hash(userData.password, 10);
 
@@ -136,7 +136,7 @@ export const register: RequestHandler = async (req, res, next) => {
 
 export const create: RequestHandler = async (req, res, next) => {
     try {
-        const userData = req.body as UserResgister;
+        const userData = req.body as UserResister;
 
         const passwordHash = await hash(userData.password, 10);
 

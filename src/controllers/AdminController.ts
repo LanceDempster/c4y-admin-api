@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
 import { LoginType } from "../schemas/Login";
-import { UserResgister } from "../schemas/UserResgister";
+import { UserResister } from "../schemas/UserResister";
 import AdminModel from "../models/AdminModel"
 import { compare, hash } from "bcrypt";
 import { User } from "../interfaces/User";

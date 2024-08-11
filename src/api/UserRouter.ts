@@ -2,7 +2,7 @@ import {Router} from "express";
 import {bodyValidation, queryValidation} from "../middlewares/Validation";
 import {LoginSchema} from "../schemas/Login";
 import * as UserController from "../controllers/UserController";
-import {UserResgisterSchema} from "../schemas/UserResgister";
+import {UserRegisterSchema} from "../schemas/UserResister";
 import {ForgotPasswordSchema} from "../schemas/ForgotPassword";
 import {ResetPasswordSchema} from "../schemas/ResetPassword";
 import {UserSearchSchema} from "../schemas/UserSearch";
@@ -43,7 +43,7 @@ userRouter.post("/login", bodyValidation(LoginSchema), UserController.login);
 
 userRouter.post(
     "/register",
-    bodyValidation(UserResgisterSchema),
+    bodyValidation(UserRegisterSchema),
     UserController.register,
 );
 
@@ -131,7 +131,7 @@ userRouter.get("/:id", authAdmin, UserController.get);
 userRouter.post(
     "/create",
     authAdmin,
-    bodyValidation(UserResgisterSchema),
+    bodyValidation(UserRegisterSchema),
     UserController.create,
 );
 

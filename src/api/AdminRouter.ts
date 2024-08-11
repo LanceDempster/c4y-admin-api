@@ -2,7 +2,7 @@ import { Router } from "express";
 import { bodyValidation, paramValidation, queryValidation } from "../middlewares/Validation";
 import { LoginSchema } from "../schemas/Login";
 import * as AdminController from "../controllers/AdminController";
-import { UserResgisterSchema } from "../schemas/UserResgister";
+import { UserRegisterSchema } from "../schemas/UserResister";
 import { ForgotPasswordSchema } from "../schemas/ForgotPassword";
 import { ResetPasswordSchema } from "../schemas/ResetPassword";
 import { AdminCreateSchema } from "../schemas/AdminCreate";
