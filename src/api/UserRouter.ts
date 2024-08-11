@@ -173,6 +173,9 @@ userRouter.post(
     upload.single("profile_picture"),
     UserController.userSettings10,
 );
+
+userRouter.patch('/userSettings/setState/:state', authUser, UserController.updateSettingsState);
+
 userRouter.post(
     "/userSettings/11",
     authUser,

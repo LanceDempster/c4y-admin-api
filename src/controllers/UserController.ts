@@ -1489,3 +1489,11 @@ export const toggleDailySpin: RequestHandler = async (req, res, next) => {
 
     return res.status(200).send(new Result(true, "Daily spin toggled", result));
 }
+
+export const updateSettingsState: RequestHandler = async (req, res, next) => {
+    const {state} = req.params;
+
+    const result = await UserModel.updateUserSettingsState(req.body.user.id, parseInt(state))
+
+    return res.status(200).send(new Result(true, "Updated settingState", result));
+}

@@ -1359,6 +1359,17 @@ const toggleDailySpin = async ({dailySpin, gameId, userId}: {
 }
 
 
+const updateUserSettingsState = async (userId: number, state: number) => {
+    await query(
+        `UPDATE user_settings
+         SET product_setup_status = $2
+         WHERE user_id = $1`,
+        [userId, state]
+    );
+
+    return 1;
+}
+
 const UserModel = {
     create,
     getById,
@@ -1411,7 +1422,8 @@ const UserModel = {
     userCheated,
     submitCheatingWheel,
     submitGame,
-    toggleDailySpin
+    toggleDailySpin,
+    updateUserSettingsState
 };
 
 export default UserModel;
