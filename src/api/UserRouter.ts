@@ -180,6 +180,7 @@ userRouter.post(
     UserController.userSettings11,
 );
 
+
 userRouter.post("/generate-wheel-instance", authUser, UserController.generateWheelInstance)
 
 userRouter.get("/wheel-instance/:gameId", authUser, UserController.getWheelInstance);

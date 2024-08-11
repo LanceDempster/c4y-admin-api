@@ -9,7 +9,7 @@ export const UserResgisterSchema = z.object({
     country: z.string({required_error: 'counrty is required'}),
     dateOfBirth: z.coerce.date({required_error: 'date of birth is required'}),
     gender: z.enum(['MALE', 'FEMALE'], {required_error: 'gender is required'}),
-    timeZone: z.string()
+    timezone: z.string()
 })
 
 export type UserResgister = z.infer<typeof UserResgisterSchema>

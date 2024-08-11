@@ -42,7 +42,7 @@ export const create = async (user: User) => {
         user.accountStatus,
         user.accountCreateDate,
         user.emailValidation,
-        user.timeZone,
+        user.timezone,
         user.gender,
     ]);
 
@@ -945,25 +945,20 @@ const addUserGame = async ({userId, seconds, minimumWheelPercentage, maximumWhee
             [userId],
         );
 
-        // Calculate the current timestamp and the timestamp after the given seconds
-        const now = new Date();
-        const endDate = new Date(now.getTime() + seconds * 1000);
-
-        // Insert into the database and get the id
         const result = await query(
             `INSERT INTO user_solo_games (user_id, game_status, game_type, start_date, end_date, original_end_date,
                                           minimum_wheel_percentage, maximum_wheel_percentage)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             VALUES ($1, $2, $3, now()::timestamp, now()::timestamp + ($4 * INTERVAL '1 minute'),
+                     now()::timestamp + ($4 * INTERVAL '1 minute'),
+                     $5, $6)
              RETURNING id`,
-            [userId, 'In Game', 'Self Countdown', now, endDate, endDate, minimumWheelPercentage, maximumWheelPercentage]
+            [userId, 'In Game', 'Self Countdown', (seconds / 60), minimumWheelPercentage, maximumWheelPercentage]
         );
-
-        const timeDifference = Math.ceil((endDate.getTime() - now.getTime()) / 60_000);
 
         // Get the inserted game id
         const gameId = result.rows[0].id;
 
-        await query("INSERT INTO countdown_changes (game_id, delta) VALUES ($1, $2)", [gameId, timeDifference]);
+        await query("INSERT INTO countdown_changes (game_id, delta) VALUES ($1, $2)", [gameId, (seconds / 60)]);
 
         // Insert into dairy and use the game id
         await query(
@@ -1295,8 +1290,8 @@ const submitGame = async ({gameId, userId, acceptedExtraTime}: {
         `UPDATE user_solo_games
          SET game_status        = 'completed',
              game_success       = true,
-             total_lock_up_time = (EXTRACT(EPOCH FROM (original_end_date - start_date) +
-                                                      (CASE WHEN $3 THEN NOW() - end_date ELSE INTERVAL '0' END)) / 60)
+             total_lock_up_time = (EXTRACT(EPOCH FROM (original_end_date - start_date)) / 60) +
+                                  (CASE WHEN $3 THEN EXTRACT(EPOCH FROM (now()::timestamp - end_date)) / 60 ELSE 0 END)
          WHERE id = $1
            and user_id = $2 RETURNING total_lock_up_time`,
         [gameId, userId, acceptedExtraTime]

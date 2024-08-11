@@ -48,6 +48,7 @@ export const login: RequestHandler = async (req, res, next) => {
             process.env.SECRET as string,
         );
 
+
         return res.status(200).send(
             new Result(true, "", {
                 id: user.id,
@@ -55,6 +56,7 @@ export const login: RequestHandler = async (req, res, next) => {
                 email: user.email,
                 gender: user.gender,
                 dateOfBirth: user.dateOfBirth,
+                timezone: user.timezone,
                 token,
             }),
         );
@@ -102,7 +104,7 @@ export const register: RequestHandler = async (req, res, next) => {
             password: passwordHash,
             accountCreateDate: new Date(),
             passwordCreateDate: new Date(),
-            timeZone: userData.timeZone,
+            timezone: userData.timezone,
         };
 
         const result = await UserModel.create(user as User);
@@ -123,6 +125,7 @@ export const register: RequestHandler = async (req, res, next) => {
                 email: result.email,
                 gender: result.gender,
                 dateOfBirth: result.dateOfBirth,
+                timezone: user.timezone,
                 token,
             }),
         );
@@ -151,7 +154,7 @@ export const create: RequestHandler = async (req, res, next) => {
             password: passwordHash,
             accountCreateDate: new Date(),
             passwordCreateDate: new Date(),
-            timeZone: userData.timeZone,
+            timezone: userData.timezone,
         };
 
         const result = await UserModel.create(user as User);

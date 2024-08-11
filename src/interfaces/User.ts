@@ -17,6 +17,6 @@ export interface User extends Base {
     emailValidation: boolean,
     gender: 'MALE' | 'FEMALE',
     resetPasswordToken: string
-    timeZone: string,
+    timezone: string,
 
 }
