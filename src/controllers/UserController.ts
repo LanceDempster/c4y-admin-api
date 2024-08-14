@@ -33,11 +33,12 @@ export const login: RequestHandler = async (req, res, next) => {
 
     const user = await UserModel.getByEmail(email);
 
-    if (!user) return next(new NotFound("There is no user with this email"));
+    if (!user) return next(new NotFound("Wrong username or password."));
 
     const checkPass = await compare(password, user.password);
 
-    if (!checkPass) return next(new NotAuthorized("Invalid password"));
+    if (!checkPass)
+      return next(new NotAuthorized("Wrong username or password."));
 
     const token = sign(
       {
@@ -106,7 +107,13 @@ export const register: RequestHandler = async (req, res, next) => {
       timezone: userData.timezone,
     };
 
-    const result = await UserModel.create(user as User);
+    let productCode = req.body.productCode;
+
+    const result = await UserModel.create(
+      user as User,
+      parseInt(productCode),
+      next,
+    );
 
     const token = sign(
       {
@@ -156,13 +163,14 @@ export const create: RequestHandler = async (req, res, next) => {
       timezone: userData.timezone,
     };
 
-    const result = await UserModel.create(user as User);
+    return "under development";
+    // const result = await UserModel.create(user as User);
 
-    return res.status(200).send(
-      new Result(true, "User created", {
-        id: result.id,
-      }),
-    );
+    // return res.status(200).send(
+    //   new Result(true, "User created", {
+    //     id: result.id,
+    //   }),
+    // );
   } catch (e) {
     next(e);
   }
