@@ -100,7 +100,7 @@ export const create = async (user: User, productCode: number, next: any) => {
 };
 
 export const getById = async (id: number = 0) => {
-    const {rows} = await query("SELECT * FROM users WHERE id=$1", [id]);
+    const {rows} = await query("SELECT users.*, user_settings.user_url, user_settings.avatar_url FROM users left join user_settings on users.id = user_settings.user_id WHERE users.id=$1", [id]);
 
     if (!rows[0]) {
         return undefined;
