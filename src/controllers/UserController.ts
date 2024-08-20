@@ -1523,3 +1523,11 @@ export const getDiaryMonthly: RequestHandler = async (req, res, next) => {
 
   return res.status(200).send(new Result(true, "Updated settingState", result));
 };
+
+export const getUserTracker: RequestHandler = async (req, res, next) => {
+  let userId = req.body.user.id;
+
+  const result = await UserModel.getUserTracker(userId);
+
+  return res.status(200).send(new Result(true, "Get user tracker", result));
+};

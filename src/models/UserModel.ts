@@ -1672,6 +1672,49 @@ const diaryMontly = async (userId: number) => {
   return rows;
 };
 
+const getUserTracker = async (userId: number) => {
+  let allData = {};
+
+  const { rows } = await query(`SELECT * FROM tracker WHERE user_id = $1`, [
+    userId,
+  ]);
+
+  allData = rows[0];
+
+  const { rows: userLock } = await query(
+    `SELECT * FROM user_lock_type
+        left join lock_type on lock_type.id = user_lock_type.lock_type_id
+        WHERE user_id = $1`,
+    [userId],
+  );
+
+  allData = { ...allData, userLock };
+
+  const { rows: userDeviceType } = await query(
+    `SELECT * FROM user_device_type
+        left join device_type on device_type.id = user_device_type.device_type
+        WHERE user_id = $1`,
+    [userId],
+  );
+
+  const { rows: userInGameCheck } = await query(
+    `SELECT * FROM user_solo_games
+        WHERE user_id = $1
+        AND game_status = 'In Game'`,
+    [userId],
+  );
+
+  if (userInGameCheck.length > 0) {
+    allData = { ...allData, gameStatus: "In Game" };
+  } else {
+    allData = { ...allData, gameStatus: "Not In Game" };
+  }
+
+  allData = { ...allData, userDeviceType };
+
+  return allData;
+};
+
 const UserModel = {
   create,
   getById,
@@ -1727,6 +1770,7 @@ const UserModel = {
   toggleDailySpin,
   updateUserSettingsState,
   diaryMontly,
+  getUserTracker,
 };
 
 export default UserModel;
