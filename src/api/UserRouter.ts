@@ -222,12 +222,14 @@ userRouter.post("/submit-wheel", authUser, UserController.submitWheel);
 
 userRouter.post("/user-wheel-cheated", authUser, UserController.userCheated);
 
+// this means the user cheated in the game, game finished and he submitted that he cheated.
 userRouter.post(
   "/submit-cheating-wheel",
   authUser,
   UserController.submitCheatingWheel,
 );
 
+// this means the user didn't cheat in the game, game finished and is successful.
 userRouter.post("/submit-game", authUser, UserController.submitGame);
 
 userRouter.patch(
