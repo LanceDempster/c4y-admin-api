@@ -1620,7 +1620,7 @@ const submitGame = async ({
       userId,
       new Date(),
       "Total lock up time increased",
-      `Congratulations! total lock up time increased by ${updateRows[0].total_lock_up_time}.`,
+      `Congratulations! total lock up time increased by ${convertMinutesToDHM(updateRows[0].total_lock_up_time)}.`,
       "c",
       rows[0].id,
       gameId,
