@@ -1531,3 +1531,13 @@ export const getUserTracker: RequestHandler = async (req, res, next) => {
 
   return res.status(200).send(new Result(true, "Get user tracker", result));
 };
+
+export const getUserAchievements: RequestHandler = async (req, res, next) => {
+  let userId = req.body.user.id;
+
+  const result = await UserModel.getUserAchievements(userId);
+
+  return res
+    .status(200)
+    .send(new Result(true, "Get user achievements", result));
+};

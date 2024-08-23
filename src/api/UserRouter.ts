@@ -39,6 +39,12 @@ const upload = multer({
 
 const userRouter = Router();
 
+userRouter.get(
+  "/get-user-achievements",
+  authUser,
+  UserController.getUserAchievements,
+);
+
 userRouter.get("/user-tracker", authUser, UserController.getUserTracker);
 
 userRouter.post("/login", bodyValidation(LoginSchema), UserController.login);

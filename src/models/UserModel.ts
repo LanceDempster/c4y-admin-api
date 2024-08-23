@@ -1715,6 +1715,28 @@ const getUserTracker = async (userId: number) => {
   return allData;
 };
 
+const getUserAchievements = async (userId: number) => {
+  const { rows } = await query(
+    `SELECT achievements.*, user_achievement.*
+        FROM achievements
+        LEFT JOIN user_achievement
+            ON user_achievement.achievement_id = achievements.id
+        LEFT JOIN user_solo_games
+            ON user_achievement.game_id = user_solo_games.id
+            AND user_solo_games.user_id = $1
+        WHERE user_solo_games.user_id = $1 OR user_solo_games.user_id IS NULL;`,
+    [userId],
+  );
+
+  if (!rows.length) {
+    return [];
+  }
+
+  const achievements = rows.map((row) => recursiveToCamel(row));
+
+  return achievements;
+};
+
 const UserModel = {
   create,
   getById,
@@ -1771,6 +1793,7 @@ const UserModel = {
   updateUserSettingsState,
   diaryMontly,
   getUserTracker,
+  getUserAchievements,
 };
 
 export default UserModel;
