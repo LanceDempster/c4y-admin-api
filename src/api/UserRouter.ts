@@ -41,6 +41,12 @@ const userRouter = Router();
 
 userRouter.get("/check-achievement", authUser, UserController.checkAchievement);
 
+userRouter.post(
+  "/claim-achievement",
+  authUser,
+  UserController.claimAchievement,
+);
+
 userRouter.get(
   "/get-user-achievements",
   authUser,

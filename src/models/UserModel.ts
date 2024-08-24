@@ -1741,6 +1741,19 @@ const getUserAchievements = async (userId: number) => {
   return achievements;
 };
 
+/**
+ * Checks if a user has unlocked a specific achievement.
+ *
+ * Returns:
+ * - -1: User is not eligible for the achievement but provides the percentage completed.
+ * - 0: Achievement criteria type is user determined.
+ * - 1: User is eligible for the achievement.
+ * - 2: Achievement is already unlocked, along with the date of achievement and percentage of users who have completed it.
+ *
+ * @param {number} userId - The ID of the user.
+ * @param {string} achievementId - The ID of the achievement.
+ * @returns {Promise<{status: number, dateOfAchievement?: string, percentageCompleted?: number}>} - The status of the achievement check.
+ */
 const checkAchievement = async (userId: number, achievementId: string) => {
   // Check if the achievement is already unlocked
   const { rows: existingAchievement } = await query(
@@ -1792,6 +1805,57 @@ const checkAchievement = async (userId: number, achievementId: string) => {
     }
   } else {
     return { status: 0 }; // User determined
+  }
+};
+
+/**
+ * Claims an achievement for a user if they are eligible.
+ *
+ * @param {number} userId - The ID of the user.
+ * @param {string} achievementId - The ID of the achievement.
+ * @returns {Promise<{status: number, message: string}>} - The status and message of the claim attempt.
+ */
+const claimAchievement = async (
+  userId: number,
+  achievementId: string,
+): Promise<{ status: number; message: string }> => {
+  const achievementCheck = await checkAchievement(userId, achievementId);
+
+  if (achievementCheck.status === 1 || achievementCheck.status === 0) {
+    // User is eligible for the achievement
+    const { rows: currentGame } = await query(
+      `SELECT id FROM user_solo_games WHERE user_id = $1 AND game_status = 'In Game'`,
+      [userId],
+    );
+
+    const gameId = currentGame[0]?.id;
+
+    const { rowCount, rows } = await query(
+      `INSERT INTO user_achievement (achievement_id, date, game_id)
+             VALUES ($1, NOW(), $2)`,
+      [achievementId, gameId],
+    );
+
+    if (rowCount === 0) {
+      return {
+        status: -1,
+        message: `Failed to claim achievement: ${JSON.stringify(rows)}`,
+      };
+    }
+
+    return { status: 1, message: "Achievement claimed successfully" };
+  } else if (achievementCheck.status === 2) {
+    return { status: 2, message: "Achievement already unlocked" };
+  } else if (achievementCheck.status === -1) {
+    return {
+      status: -1,
+      message: `Achievement not yet unlocked. ${achievementCheck.percentageCompleted}% completed.`,
+    };
+  } else {
+    return {
+      status: -1,
+      message: "Achievement not yet unlocked.",
+    };
   }
 };
 
@@ -1853,6 +1917,7 @@ const UserModel = {
   getUserTracker,
   getUserAchievements,
   checkAchievement,
+  claimAchievement,
 };
 
 export default UserModel;

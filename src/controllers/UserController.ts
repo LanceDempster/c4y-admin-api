@@ -1557,3 +1557,28 @@ export const checkAchievement: RequestHandler = async (req, res, next) => {
 
   return res.status(200).send(new Result(true, "Check achievement", result));
 };
+
+export const claimAchievement: RequestHandler = async (req, res, next) => {
+  try {
+    const userId = req.body.user.id;
+    const { achievementId } = req.body;
+
+    if (!achievementId) {
+      return next(new BadRequest("Achievement ID is required"));
+    }
+
+    const result = await UserModel.claimAchievement(userId, achievementId);
+
+    if (result) {
+      return res
+        .status(200)
+        .send(new Result(true, "Achievement claimed", result));
+    } else {
+      return res
+        .status(400)
+        .send(new Result(false, "Failed to claim achievement"));
+    }
+  } catch (e) {
+    next(e);
+  }
+};
