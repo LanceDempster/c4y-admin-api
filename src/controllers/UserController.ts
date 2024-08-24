@@ -1541,3 +1541,19 @@ export const getUserAchievements: RequestHandler = async (req, res, next) => {
     .status(200)
     .send(new Result(true, "Get user achievements", result));
 };
+
+export const checkAchievement: RequestHandler = async (req, res, next) => {
+  let userId = req.body.user.id;
+
+  let { achievementId } = req.query;
+
+  if (!achievementId) {
+    return next(new BadRequest("Achievement ID is required"));
+  }
+
+  achievementId = achievementId.toString();
+
+  const result = await UserModel.checkAchievement(userId, achievementId);
+
+  return res.status(200).send(new Result(true, "Check achievement", result));
+};

@@ -1717,14 +1717,18 @@ const getUserTracker = async (userId: number) => {
 
 const getUserAchievements = async (userId: number) => {
   const { rows } = await query(
-    `SELECT achievements.*, user_achievement.*
-        FROM achievements
-        LEFT JOIN user_achievement
-            ON user_achievement.achievement_id = achievements.id
-        LEFT JOIN user_solo_games
-            ON user_achievement.game_id = user_solo_games.id
-            AND user_solo_games.user_id = $1
-        WHERE user_solo_games.user_id = $1 OR user_solo_games.user_id IS NULL;`,
+    `select achievements.*,
+        user_achievement.date as unlocked_date,
+        user_solo_games.id as game_id,
+        user_solo_games.game_status as game_status,
+        user_achievement.id as user_achievement_id
+            FROM achievements
+            LEFT JOIN user_achievement
+                ON user_achievement.achievement_id = achievements.id
+            LEFT JOIN user_solo_games
+                ON user_achievement.game_id = user_solo_games.id
+                AND user_solo_games.user_id = $1
+            WHERE user_solo_games.user_id = $1 OR user_solo_games.user_id IS NULL;`,
     [userId],
   );
 
@@ -1735,6 +1739,60 @@ const getUserAchievements = async (userId: number) => {
   const achievements = rows.map((row) => recursiveToCamel(row));
 
   return achievements;
+};
+
+const checkAchievement = async (userId: number, achievementId: string) => {
+  // Check if the achievement is already unlocked
+  const { rows: existingAchievement } = await query(
+    `SELECT *, (SELECT COUNT(*) FROM user_achievement WHERE achievement_id = $1) * 100.0 / (SELECT COUNT(*) FROM users) AS percentage_completed
+         FROM user_achievement
+         WHERE achievement_id = $1
+           AND game_id IN (SELECT id FROM user_solo_games WHERE user_id = $2)`,
+    [achievementId, userId],
+  );
+
+  if (existingAchievement.length > 0) {
+    return {
+      status: 2, // Achievement already unlocked
+      dateOfAchievement: existingAchievement[0].date,
+      percentageCompleted: existingAchievement[0].percentage_completed,
+    };
+  }
+
+  const { rows: userAchievement } = await query(
+    `SELECT *
+         FROM achievements
+         WHERE id = $1`,
+    [achievementId],
+  );
+
+  const { rows: currentGame } = await query(
+    `SELECT *
+         FROM user_solo_games
+         WHERE user_id = $1
+           AND game_status = 'In Game'`,
+    [userId],
+  );
+
+  const { criteria } = userAchievement[0];
+  const userGame = currentGame[0];
+
+  if (criteria.type === "time") {
+    const gameDurationMinutes =
+      (new Date().getTime() - new Date(userGame.start_date).getTime()) /
+      (1000 * 60);
+
+    // Check if the game duration meets the criteria
+    if (gameDurationMinutes >= criteria.minutes) {
+      return { status: 1 }; // Eligible for achievement
+    } else {
+      const percentageCompleted =
+        (gameDurationMinutes / criteria.minutes) * 100;
+      return { status: -1, percentageCompleted }; // Not eligible for achievement
+    }
+  } else {
+    return { status: 0 }; // User determined
+  }
 };
 
 const UserModel = {
@@ -1794,6 +1852,7 @@ const UserModel = {
   diaryMontly,
   getUserTracker,
   getUserAchievements,
+  checkAchievement,
 };
 
 export default UserModel;

@@ -39,6 +39,8 @@ const upload = multer({
 
 const userRouter = Router();
 
+userRouter.get("/check-achievement", authUser, UserController.checkAchievement);
+
 userRouter.get(
   "/get-user-achievements",
   authUser,
