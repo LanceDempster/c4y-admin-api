@@ -1754,7 +1754,14 @@ const getUserAchievements = async (userId: number) => {
  * @param {string} achievementId - The ID of the achievement.
  * @returns {Promise<{status: number, dateOfAchievement?: string, percentageCompleted?: number}>} - The status of the achievement check.
  */
-const checkAchievement = async (userId: number, achievementId: string) => {
+const checkAchievement = async (
+  userId: number,
+  achievementId: string,
+): Promise<{
+  status: number;
+  dateOfAchievement?: string;
+  percentageCompleted?: number;
+}> => {
   // Check if the achievement is already unlocked
   const { rows: existingAchievement } = await query(
     `SELECT *, (SELECT COUNT(*) FROM user_achievement WHERE achievement_id = $1) * 100.0 / (SELECT COUNT(*) FROM users) AS percentage_completed
@@ -1789,6 +1796,10 @@ const checkAchievement = async (userId: number, achievementId: string) => {
 
   const { criteria } = userAchievement[0];
   const userGame = currentGame[0];
+
+  if (!userGame) {
+    return { status: -1 };
+  }
 
   if (criteria.type === "time") {
     const gameDurationMinutes =
