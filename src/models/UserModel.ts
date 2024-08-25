@@ -1547,15 +1547,29 @@ const submitGame = async ({
     [userId],
   );
 
+  const { rows: gameTypeRows } = await query(
+    `SELECT game_type
+         FROM user_solo_games
+         WHERE id = $1`,
+    [gameId],
+  );
+
+  const isStopWatch = gameTypeRows[0].game_type === "Stop Watch";
+
   const { rows: updateRows } = await query(
     `UPDATE user_solo_games
          SET game_status        = 'completed',
              game_success       = true,
-             total_lock_up_time = (EXTRACT(EPOCH FROM (original_end_date - start_date)) / 60) +
-                                  (CASE WHEN $3 THEN EXTRACT(EPOCH FROM (now()::timestamp - end_date)) / 60 ELSE 0 END)
+             end_date           = $3,
+             original_end_date  = $3,
+             total_lock_up_time = CASE
+                                    WHEN $4 THEN EXTRACT(EPOCH FROM ($3 - start_date)) / 60
+                                    ELSE (EXTRACT(EPOCH FROM (original_end_date - start_date)) / 60) +
+                                         (CASE WHEN $5 THEN EXTRACT(EPOCH FROM ($3 - end_date)) / 60 ELSE 0 END)
+                                  END
          WHERE id = $1
            and user_id = $2 RETURNING total_lock_up_time`,
-    [gameId, userId, acceptedExtraTime],
+    [gameId, userId, new Date(), isStopWatch, acceptedExtraTime],
   );
 
   const { rows: userTrackRows } = await query(
@@ -1606,8 +1620,10 @@ const submitGame = async ({
     [
       userId,
       new Date(),
-      "Self Managed Countdown completed",
-      `Congratulations! Your Self-Managed Countdown game has ended in success.`,
+      isStopWatch
+        ? "Stop Watch Game completed"
+        : "Self Managed Countdown completed",
+      `Congratulations! Your ${isStopWatch ? "Stop Watch" : "Self-Managed Countdown"} game has ended in success.`,
       "c",
       rows[0].id,
       gameId,
