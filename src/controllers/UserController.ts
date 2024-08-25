@@ -31,14 +31,27 @@ export const login: RequestHandler = async (req, res, next) => {
   try {
     const { email, password }: LoginType = req.body;
 
+    if (!email || !password) {
+      return res
+        .status(400)
+        .send(new Result(false, "Email and password are required."));
+    }
+
     const user = await UserModel.getByEmail(email);
 
-    if (!user) return next(new NotFound("Wrong username or password."));
+    if (!user) {
+      return res
+        .status(401)
+        .send(new Result(false, "Wrong username or password."));
+    }
 
     const checkPass = await compare(password, user.password);
 
-    if (!checkPass)
-      return next(new NotAuthorized("Wrong username or password."));
+    if (!checkPass) {
+      return res
+        .status(401)
+        .send(new Result(false, "Wrong username or password."));
+    }
 
     const token = sign(
       {

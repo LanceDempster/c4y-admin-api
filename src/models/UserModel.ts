@@ -1724,7 +1724,7 @@ const getUserAchievements = async (userId: number) => {
         user_achievement.id as user_achievement_id
             FROM achievements
             LEFT JOIN user_achievement
-                ON user_achievement.achievement_id = achievements.id
+                ON user_achievement.achievement_id = achievements.id and user_achievement.game_id in (select id from user_solo_games where user_id = $1)
             LEFT JOIN user_solo_games
                 ON user_achievement.game_id = user_solo_games.id
                 AND user_solo_games.user_id = $1
