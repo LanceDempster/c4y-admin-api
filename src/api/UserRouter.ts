@@ -254,4 +254,10 @@ userRouter.patch(
   UserController.toggleDailySpin,
 );
 
+userRouter.post(
+  "/start-stopwatch-game",
+  authUser,
+  UserController.startStopWatchGame,
+);
+
 export default userRouter;

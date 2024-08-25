@@ -1870,6 +1870,45 @@ const claimAchievement = async (
   }
 };
 
+const startStopWatchGame = async ({ userId }: { userId: number }) => {
+  try {
+    const { rows } = await query(
+      `SELECT product_code
+             FROM user_product
+             WHERE user_id = $1`,
+      [userId],
+    );
+
+    const result = await query(
+      `INSERT INTO user_solo_games (user_id, game_status, game_type, start_date)
+             VALUES ($1, $2, $3, now()::timestamp)
+             RETURNING id`,
+      [userId, "In Game", "Stop Watch"],
+    );
+
+    const gameId = result.rows[0].id;
+
+    await query(
+      `INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        userId,
+        new Date(),
+        "Stop Watch Game Started",
+        "Started a Stop Watch game",
+        "c",
+        rows[0]["product_code"],
+        gameId,
+      ],
+    );
+
+    return { status: 1, message: "Stop Watch game started successfully" };
+  } catch (e) {
+    console.error("Error starting Stop Watch game", e);
+    return { status: -1, message: "Failed to start Stop Watch game" };
+  }
+};
+
 const UserModel = {
   create,
   getById,
@@ -1929,6 +1968,7 @@ const UserModel = {
   getUserAchievements,
   checkAchievement,
   claimAchievement,
+  startStopWatchGame,
 };
 
 export default UserModel;
