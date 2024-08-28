@@ -1294,14 +1294,19 @@ export const addUserGame: RequestHandler = async (req, res, next) => {
     }
 
     const id = user.id;
-    const { seconds, minimumWheelPercentage, maximumWheelPercentage } =
-      req.body;
+    const {
+      seconds,
+      minimumWheelPercentage,
+      maximumWheelPercentage,
+      gameType,
+    } = req.body;
 
     const result = await UserModel.addUserGame({
       userId: id,
       seconds,
       minimumWheelPercentage,
       maximumWheelPercentage,
+      gameType,
     });
 
     return res.status(200).send(new Result(true, "Game started"));

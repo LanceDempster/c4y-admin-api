@@ -1021,12 +1021,17 @@ const addUserGame = async ({
   seconds,
   minimumWheelPercentage,
   maximumWheelPercentage,
+  gameType,
 }: {
   userId: number;
   seconds: number;
   minimumWheelPercentage: number;
   maximumWheelPercentage: number;
+  gameType: string;
 }) => {
+  const defaultGameType = "Self Countdown";
+  gameType = gameType || defaultGameType;
+
   try {
     assert(
       minimumWheelPercentage >= 10 &&
@@ -1061,7 +1066,7 @@ const addUserGame = async ({
       [
         userId,
         "In Game",
-        "Self Countdown",
+        gameType,
         seconds / 60,
         minimumWheelPercentage,
         maximumWheelPercentage,
@@ -1084,7 +1089,7 @@ const addUserGame = async ({
         userId,
         new Date(),
         "Game Started",
-        "Started Self-Managed game using the self entered countdown",
+        `Started Self-Managed game using ${gameType}`,
         "c",
         rows[0]["product_code"],
         gameId,
@@ -1105,12 +1110,21 @@ const cancelUserGame = async ({
   userId: number;
   gameId: number;
 }) => {
-  const { rows } = await query(
+  const { rows: productRows } = await query(
     `SELECT product_code
          FROM user_product
          WHERE user_id = $1`,
     [userId],
   );
+
+  const { rows: gameRows } = await query(
+    `SELECT game_type
+         FROM user_solo_games
+         WHERE id = $1`,
+    [gameId],
+  );
+
+  const gameType = gameRows[0]?.game_type || "Self-Managed";
 
   await query(
     `INSERT Into dairy(user_id, created_date, title, entry, type, product, game_id)
@@ -1119,9 +1133,9 @@ const cancelUserGame = async ({
       userId,
       new Date(),
       "Game Canceled",
-      "Canceled Self-Managed game using the cancel button",
+      `Canceled ${gameType} game using the cancel button`,
       "c",
-      rows[0]["product_code"],
+      productRows[0]["product_code"],
       gameId,
     ],
   );
@@ -1554,6 +1568,7 @@ const submitGame = async ({
     [gameId],
   );
 
+  const gameType = gameTypeRows[0].game_type;
   const isStopWatch = gameTypeRows[0].game_type === "Stop Watch";
 
   const { rows: updateRows } = await query(
@@ -1620,10 +1635,8 @@ const submitGame = async ({
     [
       userId,
       new Date(),
-      isStopWatch
-        ? "Stop Watch Game completed"
-        : "Self Managed Countdown completed",
-      `Congratulations! Your ${isStopWatch ? "Stop Watch" : "Self-Managed Countdown"} game has ended in success.`,
+      `${gameType} Game completed`,
+      `Congratulations! Your ${gameType} game has ended in success.`,
       "c",
       rows[0].id,
       gameId,
