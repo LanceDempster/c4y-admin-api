@@ -1126,14 +1126,16 @@ const addUserGame = async ({
   imageVerificationInterval,
   imageVerificationPunishment,
   gameType,
+  notes,
 }: {
   userId: number;
-  seconds: number;
+  seconds: number | null | undefined;
   minimumWheelPercentage: number | null | undefined;
   maximumWheelPercentage: number | null | undefined;
   imageVerificationInterval: number | null | undefined;
   imageVerificationPunishment: number | null | undefined;
   gameType: string;
+  notes: string;
 }) => {
   const defaultGameType = "Self Countdown";
   gameType = gameType || defaultGameType;
@@ -1167,22 +1169,36 @@ const addUserGame = async ({
       [userId],
     );
 
-    const result = await query(
-      `INSERT INTO user_solo_games (user_id, game_status, game_type, start_date, end_date, original_end_date,
+    let result;
+    if (gameType === "Stop Watch") {
+      result = await query(
+        `INSERT INTO user_solo_games (user_id, game_status, game_type, start_date)
+             VALUES ($1, $2, $3, now()::timestamp)
+             RETURNING id`,
+        [userId, "In Game", "Stop Watch"],
+      );
+    } else {
+      if (typeof seconds !== "number") {
+        throw new Error("Seconds must be a number");
+      }
+
+      result = await query(
+        `INSERT INTO user_solo_games (user_id, game_status, game_type, start_date, end_date, original_end_date,
                                           minimum_wheel_percentage, maximum_wheel_percentage)
              VALUES ($1, $2, $3, now()::timestamp, now()::timestamp + ($4 * INTERVAL '1 minute'),
                      now()::timestamp + ($4 * INTERVAL '1 minute'),
                      $5, $6)
              RETURNING id`,
-      [
-        userId,
-        "In Game",
-        gameType,
-        seconds / 60,
-        minimumWheelPercentage,
-        maximumWheelPercentage,
-      ],
-    );
+        [
+          userId,
+          "In Game",
+          gameType,
+          seconds / 60,
+          minimumWheelPercentage,
+          maximumWheelPercentage,
+        ],
+      );
+    }
 
     // Get the inserted game id
     const gameId = result.rows[0].id;
@@ -1209,12 +1225,23 @@ const addUserGame = async ({
       }
     }
 
-    await query(
-      "INSERT INTO countdown_changes (game_id, delta) VALUES ($1, $2)",
-      [gameId, seconds / 60],
-    );
+    if (gameType !== "Stop Watch") {
+      if (typeof seconds !== "number") {
+        throw new Error("Seconds must be a number");
+      }
+
+      await query(
+        "INSERT INTO countdown_changes (game_id, delta) VALUES ($1, $2)",
+        [gameId, seconds / 60],
+      );
+    }
 
     // Insert into dairy and use the game id
+    let diaryEntry = `Started Self-Managed game using ${gameType}`;
+    if (typeof notes === "string" && notes.trim() !== "") {
+      diaryEntry += `. Notes: ${notes}`;
+    }
+
     await query(
       `INSERT Into dairy(user_id, created_date, title, entry, type, product, game_id)
              values ($1, $2, $3, $4, $5, $6, $7)`,
@@ -1222,7 +1249,7 @@ const addUserGame = async ({
         userId,
         new Date(),
         "Game Started",
-        `Started Self-Managed game using ${gameType}`,
+        diaryEntry,
         "c",
         rows[0]["product_code"],
         gameId,
@@ -2032,45 +2059,6 @@ const claimAchievement = async (
   }
 };
 
-const startStopWatchGame = async ({ userId }: { userId: number }) => {
-  try {
-    const { rows } = await query(
-      `SELECT product_code
-             FROM user_product
-             WHERE user_id = $1`,
-      [userId],
-    );
-
-    const result = await query(
-      `INSERT INTO user_solo_games (user_id, game_status, game_type, start_date)
-             VALUES ($1, $2, $3, now()::timestamp)
-             RETURNING id`,
-      [userId, "In Game", "Stop Watch"],
-    );
-
-    const gameId = result.rows[0].id;
-
-    await query(
-      `INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        userId,
-        new Date(),
-        "Stop Watch Game Started",
-        "Started a Stop Watch game",
-        "c",
-        rows[0]["product_code"],
-        gameId,
-      ],
-    );
-
-    return { status: 1, message: "Stop Watch game started successfully" };
-  } catch (e) {
-    console.error("Error starting Stop Watch game", e);
-    return { status: -1, message: "Failed to start Stop Watch game" };
-  }
-};
-
 const getGameVerificationAttempt = async (
   gameId: number,
 ): Promise<{ id: number; code: string }> => {
@@ -2122,6 +2110,54 @@ const uploadVerificationImage = async (
   } catch (e) {
     console.error("Error uploading verification image", e);
     return { status: -1, message: "Error uploading verification image" };
+  }
+};
+
+const getCommunityImagesForVerification = async (
+  userId: number,
+  limit: number = 1,
+): Promise<Array<{ id: number; imageUrl: string; code: string }>> => {
+  const { rows } = await query(
+    `SELECT gvi.id, gvi.image_url, gva.code
+     FROM game_verification_image gvi
+     JOIN user_solo_games usg ON gvi.game_id = usg.id
+     JOIN game_verification_attempt gva ON gvi.attempt_id = gva.id
+     WHERE usg.user_id != $1
+       AND gvi.verified IS NULL
+     ORDER BY RANDOM()
+     LIMIT $2`,
+    [userId, limit],
+  );
+
+  const images = rows.map((row) => ({
+    id: row.id,
+    imageUrl: row.image_url,
+    code: row.code,
+  }));
+
+  return images;
+};
+
+const verifyCommunityImage = async (
+  imageId: number,
+  isVerified: boolean,
+): Promise<{ status: number; message: string }> => {
+  try {
+    const { rowCount } = await query(
+      `UPDATE game_verification_image
+       SET verified = $2
+       WHERE id = $1`,
+      [imageId, isVerified],
+    );
+
+    if (rowCount === 0) {
+      return { status: -1, message: "Failed to verify community image" };
+    }
+
+    return { status: 1, message: "Community image verified successfully" };
+  } catch (e) {
+    console.error("Error verifying community image", e);
+    return { status: -1, message: "Error verifying community image" };
   }
 };
 
@@ -2184,9 +2220,10 @@ const UserModel = {
   getUserAchievements,
   checkAchievement,
   claimAchievement,
-  startStopWatchGame,
   getGameVerificationAttempt,
   uploadVerificationImage,
+  getCommunityImagesForVerification,
+  verifyCommunityImage,
 };
 
 export default UserModel;

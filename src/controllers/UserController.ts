@@ -1301,6 +1301,7 @@ export const addUserGame: RequestHandler = async (req, res, next) => {
       imageVerificationInterval,
       imageVerificationPunishment,
       gameType,
+      notes,
     } = req.body;
 
     const result = await UserModel.addUserGame({
@@ -1311,6 +1312,7 @@ export const addUserGame: RequestHandler = async (req, res, next) => {
       imageVerificationInterval,
       imageVerificationPunishment,
       gameType,
+      notes,
     });
 
     return res.status(200).send(new Result(true, "Game started"));
@@ -1605,36 +1607,6 @@ export const claimAchievement: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const startStopWatchGame: RequestHandler = async (req, res, next) => {
-  try {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
-
-    if (!token) {
-      return next(new NotAuthorized("Unauthorized"));
-    }
-
-    const decoded: Token = verify(token, process.env.SECRET as string) as any;
-
-    const user = await UserModel.getById(decoded.id);
-
-    if (!user || decoded.role !== "USER") {
-      return next(new NotAuthorized("Invalid token"));
-    }
-
-    const id = user.id;
-
-    const result = await UserModel.startStopWatchGame({
-      userId: id,
-    });
-
-    return res
-      .status(200)
-      .send(new Result(true, "Stopwatch game started", result));
-  } catch (e) {
-    next(e);
-  }
-};
-
 export const getGameVerificationAttempt: RequestHandler = async (
   req,
   res,
@@ -1714,6 +1686,68 @@ export const uploadVerificationImage: RequestHandler = async (
     return res
       .status(200)
       .send(new Result(true, "Verification image uploaded", result));
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getCommunityImagesForVerification: RequestHandler = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const result = await UserModel.getCommunityImagesForVerification(user.id);
+
+    return res
+      .status(200)
+      .send(new Result(true, "Community images for verification", result));
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const verifyCommunityImage: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const { imageId, isValied } = req.body;
+
+    if (typeof imageId !== "number" || typeof isValied !== "boolean") {
+      return next(new BadRequest("Invalid imageId or isVerified value"));
+    }
+
+    const result = await UserModel.verifyCommunityImage(imageId, isValied);
+
+    return res
+      .status(200)
+      .send(new Result(true, "Community image verification updated", result));
   } catch (e) {
     next(e);
   }

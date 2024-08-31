@@ -40,6 +40,18 @@ const upload = multer({
 const userRouter = Router();
 
 userRouter.get(
+  "/get-community-images-for-verification",
+  authUser,
+  UserController.getCommunityImagesForVerification,
+);
+
+userRouter.post(
+  "/verify-community-image",
+  authUser,
+  UserController.verifyCommunityImage,
+);
+
+userRouter.get(
   "/get-game-verification-attempt",
   authUser,
   UserController.getGameVerificationAttempt,
@@ -265,12 +277,6 @@ userRouter.patch(
   "/toggle-daily-spin",
   authUser,
   UserController.toggleDailySpin,
-);
-
-userRouter.post(
-  "/start-stopwatch-game",
-  authUser,
-  UserController.startStopWatchGame,
 );
 
 export default userRouter;
