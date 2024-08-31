@@ -1752,3 +1752,43 @@ export const verifyCommunityImage: RequestHandler = async (req, res, next) => {
     next(e);
   }
 };
+
+export const updateUserTimeLimits: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const { minTime, maxTime } = req.body;
+
+    if (typeof minTime !== "number" || typeof maxTime !== "number") {
+      return next(new BadRequest("Invalid minTime or maxTime value"));
+    }
+
+    if (minTime >= maxTime) {
+      return next(new BadRequest("minTime must be less than maxTime"));
+    }
+
+    const result = await UserModel.updateUserTimeLimits(
+      user.id,
+      minTime,
+      maxTime,
+    );
+
+    return res
+      .status(200)
+      .send(new Result(true, "User time limits updated", result));
+  } catch (e) {
+    next(e);
+  }
+};

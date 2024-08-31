@@ -39,6 +39,12 @@ const upload = multer({
 
 const userRouter = Router();
 
+userRouter.post(
+  "/update-user-time-limits",
+  authUser,
+  UserController.updateUserTimeLimits,
+);
+
 userRouter.get(
   "/get-community-images-for-verification",
   authUser,

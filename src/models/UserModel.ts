@@ -2161,6 +2161,21 @@ const verifyCommunityImage = async (
   }
 };
 
+const updateUserTimeLimits = async (
+  id: number,
+  minTime: number,
+  maxTime: number,
+): Promise<boolean> => {
+  const queryText = `UPDATE user_settings
+                       SET min_time = $2,
+                           max_time = $3
+                       WHERE user_id = $1 RETURNING *`;
+
+  await query(queryText, [id, minTime, maxTime]);
+
+  return true;
+};
+
 const UserModel = {
   create,
   getById,
@@ -2224,6 +2239,7 @@ const UserModel = {
   uploadVerificationImage,
   getCommunityImagesForVerification,
   verifyCommunityImage,
+  updateUserTimeLimits,
 };
 
 export default UserModel;
