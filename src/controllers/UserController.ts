@@ -1298,6 +1298,8 @@ export const addUserGame: RequestHandler = async (req, res, next) => {
       seconds,
       minimumWheelPercentage,
       maximumWheelPercentage,
+      imageVerificationInterval,
+      imageVerificationPunishment,
       gameType,
     } = req.body;
 
@@ -1306,6 +1308,8 @@ export const addUserGame: RequestHandler = async (req, res, next) => {
       seconds,
       minimumWheelPercentage,
       maximumWheelPercentage,
+      imageVerificationInterval,
+      imageVerificationPunishment,
       gameType,
     });
 
@@ -1626,6 +1630,90 @@ export const startStopWatchGame: RequestHandler = async (req, res, next) => {
     return res
       .status(200)
       .send(new Result(true, "Stopwatch game started", result));
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getGameVerificationAttempt: RequestHandler = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const gameId = Number(req.query.gameId);
+
+    if (isNaN(gameId)) {
+      return next(new BadRequest("Invalid gameId"));
+    }
+
+    const result = await UserModel.getGameVerificationAttempt(gameId);
+
+    return res
+      .status(200)
+      .send(new Result(true, "Game verification attempt", result));
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const uploadVerificationImage: RequestHandler = async (
+  req,
+  res,
+  next,
+) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const gameId = Number(req.body.gameId);
+    const attemptId = Number(req.body.attemptId);
+
+    if (isNaN(gameId) || isNaN(attemptId)) {
+      return next(new BadRequest("Invalid gameId or attemptId"));
+    }
+
+    // @ts-ignore
+    const fileLocation = req?.file?.location;
+
+    if (!fileLocation) {
+      return next(new BadRequest("No file uploaded"));
+    }
+
+    const result = await UserModel.uploadVerificationImage(
+      gameId,
+      attemptId,
+      fileLocation,
+    );
+
+    return res
+      .status(200)
+      .send(new Result(true, "Verification image uploaded", result));
   } catch (e) {
     next(e);
   }

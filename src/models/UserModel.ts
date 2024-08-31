@@ -992,26 +992,128 @@ const toggleStatus = async ({
 
 const getUserGames = async ({ userId }: { userId: number }) => {
   const { rows } = await query(
-    `select user_solo_games.*,
-                cheater_punishment.id as cheater_wheel_id,
-                p1.name               as punishment1Name,
-                p2.name               as punishment2Name,
-                p3.name               as punishment3Name,
-                p4.name               as punishment4Name,
-                p5.name               as punishment5Name
-         from user_solo_games
-                  left join cheater_punishment
-                            on user_solo_games.id = cheater_punishment.game_id and
-                               cheater_punishment.state = 1
-                  left join punishments p1 on punishment1id = p1.id
-                  left join punishments p2 on punishment2id = p2.id
-                  left join punishments p3 on punishment3id = p3.id
-                  left join punishments p4 on punishment4id = p4.id
-                  left join punishments p5 on punishment5id = p5.id
-         where user_id = $1
-           and game_status = 'In Game'`,
+    `SELECT user_solo_games.*,
+            cheater_punishment.id as cheater_wheel_id,
+            p1.name               as punishment1Name,
+            p2.name               as punishment2Name,
+            p3.name               as punishment3Name,
+            p4.name               as punishment4Name,
+            p5.name               as punishment5Name,
+            gvs.regularity,
+            gvs.punishment_time,
+            (SELECT image_url
+             FROM game_verification_image
+             WHERE game_id = user_solo_games.id
+             ORDER BY date DESC
+             LIMIT 1) as latest_verification_image,
+            (SELECT date
+             FROM game_verification_image
+             WHERE game_id = user_solo_games.id
+             ORDER BY date DESC
+             LIMIT 1) as latest_verification_time
+     FROM user_solo_games
+     LEFT JOIN cheater_punishment
+               ON user_solo_games.id = cheater_punishment.game_id AND
+                  cheater_punishment.state = 1
+     LEFT JOIN punishments p1 ON punishment1id = p1.id
+     LEFT JOIN punishments p2 ON punishment2id = p2.id
+     LEFT JOIN punishments p3 ON punishment3id = p3.id
+     LEFT JOIN punishments p4 ON punishment4id = p4.id
+     LEFT JOIN punishments p5 ON punishment5id = p5.id
+     LEFT JOIN game_verification_settings gvs ON user_solo_games.id = gvs.game_id
+     WHERE user_id = $1
+       AND game_status = 'In Game'`,
     [userId],
   );
+
+  for (const game of rows) {
+    if (game.regularity && game.punishment_time) {
+      const startDate = new Date(game.start_date);
+      const currentDate = new Date();
+      const daysSinceStart = Math.floor(
+        (currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      const windows = Math.floor(daysSinceStart / game.regularity);
+
+      let newPunishments = 0;
+      let punishedWindows = [];
+
+      for (let i = 0; i < windows; i++) {
+        const windowStartDate = new Date(
+          startDate.getTime() + i * game.regularity * 24 * 60 * 60 * 1000,
+        );
+        const windowEndDate = new Date(
+          windowStartDate.getTime() + game.regularity * 24 * 60 * 60 * 1000,
+        );
+
+        const { rows: verificationRows } = await query(
+          `SELECT * FROM game_verification_image
+           WHERE game_id = $1 AND date >= $2 AND date < $3 AND (verified IS NULL OR verified = true)`,
+          [game.id, windowStartDate, windowEndDate],
+        );
+
+        if (verificationRows.length === 0) {
+          const { rows: punishmentRows } = await query(
+            `SELECT * FROM game_verification_punishment
+             WHERE game_id = $1 AND date > $2 AND date <= $3`,
+            [game.id, windowStartDate, windowEndDate],
+          );
+
+          if (punishmentRows.length === 0) {
+            await query(
+              `INSERT INTO game_verification_punishment (game_id, date)
+               VALUES ($1, $2)`,
+              [game.id, windowEndDate],
+            );
+
+            await query(
+              `INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [
+                userId,
+                windowEndDate,
+                "Verification Punishment",
+                `You missed a verification window and received a punishment of ${game.punishment_time} minutes added to your lock time.`,
+                "c",
+                rows[0]["product_code"],
+                game.id,
+              ],
+            );
+
+            await query(
+              `INSERT INTO countdown_changes (game_id, delta)
+               VALUES ($1, $2)`,
+              [game.id, game.punishment_time],
+            );
+
+            await query(
+              `UPDATE user_solo_games
+               SET end_date = end_date + ($2 * INTERVAL '1 minute')
+               WHERE id = $1
+               RETURNING end_date`,
+              [game.id, game.punishment_time],
+            );
+
+            newPunishments++;
+            punishedWindows.push(i + 1);
+            game.punishment_count = (game.punishment_count || 0) + 1;
+          }
+        }
+      }
+
+      // Update the end_date in the game object if punishments were applied
+      if (newPunishments > 0) {
+        const { rows: updatedGameRows } = await query(
+          `SELECT end_date FROM user_solo_games WHERE id = $1`,
+          [game.id],
+        );
+        game.end_date = updatedGameRows[0].end_date;
+
+        game.new_punishments = newPunishments;
+        game.punished_windows = punishedWindows;
+      }
+    }
+  }
 
   return rows;
 };
@@ -1021,28 +1123,37 @@ const addUserGame = async ({
   seconds,
   minimumWheelPercentage,
   maximumWheelPercentage,
+  imageVerificationInterval,
+  imageVerificationPunishment,
   gameType,
 }: {
   userId: number;
   seconds: number;
-  minimumWheelPercentage: number;
-  maximumWheelPercentage: number;
+  minimumWheelPercentage: number | null | undefined;
+  maximumWheelPercentage: number | null | undefined;
+  imageVerificationInterval: number | null | undefined;
+  imageVerificationPunishment: number | null | undefined;
   gameType: string;
 }) => {
   const defaultGameType = "Self Countdown";
   gameType = gameType || defaultGameType;
 
   try {
-    assert(
-      minimumWheelPercentage >= 10 &&
-        minimumWheelPercentage <= maximumWheelPercentage,
-      "Minimum Wheel Percentage must be more than 10 and less than Max Wheel Percentage",
-    );
-    assert(
-      maximumWheelPercentage <= 50 &&
-        maximumWheelPercentage >= minimumWheelPercentage,
-      "Max Wheel Percentage must be less than 50 and more than Min Wheel Percentage",
-    );
+    if (
+      typeof minimumWheelPercentage === "number" &&
+      typeof maximumWheelPercentage === "number"
+    ) {
+      assert(
+        minimumWheelPercentage >= 10 &&
+          minimumWheelPercentage <= maximumWheelPercentage,
+        "Minimum Wheel Percentage must be more than 10 and less than Max Wheel Percentage",
+      );
+      assert(
+        maximumWheelPercentage <= 50 &&
+          maximumWheelPercentage >= minimumWheelPercentage,
+        "Max Wheel Percentage must be less than 50 and more than Min Wheel Percentage",
+      );
+    }
   } catch (e) {
     console.error("Rolling back transaction due to errors", e);
     return -1;
@@ -1075,6 +1186,28 @@ const addUserGame = async ({
 
     // Get the inserted game id
     const gameId = result.rows[0].id;
+
+    if (typeof imageVerificationInterval === "string") {
+      imageVerificationInterval = parseInt(imageVerificationInterval, 10);
+    }
+    if (typeof imageVerificationPunishment === "string") {
+      imageVerificationPunishment = parseInt(imageVerificationPunishment, 10);
+    }
+
+    if (
+      typeof imageVerificationInterval === "number" &&
+      typeof imageVerificationPunishment === "number"
+    ) {
+      const result = await query(
+        `INSERT INTO game_verification_settings (game_id, regularity, punishment_time)
+         VALUES ($1, $2, $3)`,
+        [gameId, imageVerificationInterval, imageVerificationPunishment],
+      );
+
+      if (result.rowCount === 0) {
+        throw new Error("Failed to insert game verification settings");
+      }
+    }
 
     await query(
       "INSERT INTO countdown_changes (game_id, delta) VALUES ($1, $2)",
@@ -1938,6 +2071,60 @@ const startStopWatchGame = async ({ userId }: { userId: number }) => {
   }
 };
 
+const getGameVerificationAttempt = async (
+  gameId: number,
+): Promise<{ id: number; code: string }> => {
+  // Check if there's an unused attempt
+  const { rows: unusedAttempt } = await query(
+    `SELECT gva.id, gva.code
+     FROM game_verification_attempt gva
+     LEFT JOIN game_verification_image gvi ON gva.id = gvi.attempt_id
+     WHERE gva.game_id = $1 AND gvi.id IS NULL
+     ORDER BY gva.date DESC
+     LIMIT 1`,
+    [gameId],
+  );
+
+  if (unusedAttempt.length > 0) {
+    return unusedAttempt[0];
+  }
+
+  // If no unused attempt, create a new one
+  const code = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit number
+  const { rows: newAttempt } = await query(
+    `INSERT INTO game_verification_attempt (code, game_id, date)
+     VALUES ($1, $2, NOW())
+     RETURNING id, code`,
+    [code, gameId],
+  );
+
+  return newAttempt[0];
+};
+
+const uploadVerificationImage = async (
+  gameId: number,
+  attemptId: number,
+  imageUrl: string,
+): Promise<{ status: number; message: string }> => {
+  try {
+    const { rowCount } = await query(
+      `INSERT INTO game_verification_image (game_id, attempt_id, image_url, date)
+       VALUES ($1, $2, $3, NOW())
+       RETURNING id`,
+      [gameId, attemptId, imageUrl],
+    );
+
+    if (rowCount === 0) {
+      return { status: -1, message: "Failed to upload verification image" };
+    }
+
+    return { status: 1, message: "Verification image uploaded successfully" };
+  } catch (e) {
+    console.error("Error uploading verification image", e);
+    return { status: -1, message: "Error uploading verification image" };
+  }
+};
+
 const UserModel = {
   create,
   getById,
@@ -1998,6 +2185,8 @@ const UserModel = {
   checkAchievement,
   claimAchievement,
   startStopWatchGame,
+  getGameVerificationAttempt,
+  uploadVerificationImage,
 };
 
 export default UserModel;

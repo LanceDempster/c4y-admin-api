@@ -39,6 +39,19 @@ const upload = multer({
 
 const userRouter = Router();
 
+userRouter.get(
+  "/get-game-verification-attempt",
+  authUser,
+  UserController.getGameVerificationAttempt,
+);
+
+userRouter.post(
+  "/upload-verification-image",
+  authUser,
+  upload.single("verification_image"),
+  UserController.uploadVerificationImage,
+);
+
 userRouter.get("/check-achievement", authUser, UserController.checkAchievement);
 
 userRouter.post(
