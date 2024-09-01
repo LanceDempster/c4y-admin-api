@@ -1792,3 +1792,76 @@ export const updateUserTimeLimits: RequestHandler = async (req, res, next) => {
     next(e);
   }
 };
+
+export const recordOrgasm: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const { typeId, location, byWhom, orgasmDate, notes } = req.body;
+
+    if (!typeId || !orgasmDate) {
+      return next(new BadRequest("Type and date are required"));
+    }
+
+    // Convert orgasmDate string to Date object
+    const parsedOrgasmDate = new Date(orgasmDate);
+
+    // Check if the parsed date is valid
+    if (isNaN(parsedOrgasmDate.getTime())) {
+      return next(new BadRequest("Invalid date format"));
+    }
+
+    const result = await UserModel.recordOrgasm(
+      user.id,
+      typeId,
+      location,
+      byWhom,
+      parsedOrgasmDate,
+      notes,
+    );
+
+    return res.status(200).send(new Result(true, "Orgasm recorded", result));
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getOrgasmTypes: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const { search } = req.query;
+
+    const result = await UserModel.getOrgasmTypes(search as string | undefined);
+
+    return res
+      .status(200)
+      .send(new Result(true, "Orgasm types retrieved", result));
+  } catch (e) {
+    next(e);
+  }
+};

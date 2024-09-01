@@ -39,6 +39,10 @@ const upload = multer({
 
 const userRouter = Router();
 
+userRouter.get("/orgasm-types", authUser, UserController.getOrgasmTypes);
+
+userRouter.post("/record-orgasm", authUser, UserController.recordOrgasm);
+
 userRouter.post(
   "/update-user-time-limits",
   authUser,

@@ -2176,6 +2176,72 @@ const updateUserTimeLimits = async (
   return true;
 };
 
+const recordOrgasm = async (
+  userId: number,
+  typeId: number,
+  location: string,
+  byWhom: string,
+  orgasmDate: Date,
+  notes: string,
+): Promise<{ status: number; message: string }> => {
+  try {
+    const { rowCount } = await query(
+      `INSERT INTO user_orgasm (userid, type_id, location, by_whom, created_date, orgasm_date, notes)
+       VALUES ($1, $2, $3, $4, NOW(), $5, $6)
+       RETURNING id`,
+      [userId, typeId, location, byWhom, orgasmDate, notes],
+    );
+
+    if (rowCount === 0) {
+      return { status: -1, message: "Failed to record orgasm" };
+    }
+
+    // Update the tracker
+    await query(
+      `UPDATE tracker
+       SET total_orgasms = total_orgasms + 1
+       WHERE user_id = $1`,
+      [userId],
+    );
+
+    // Add a diary entry for the orgasm
+    await query(
+      `INSERT INTO dairy (user_id, created_date, title, entry, type, product)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        userId,
+        orgasmDate,
+        "Orgasm Recorded",
+        `Orgasm recorded on ${orgasmDate.toLocaleDateString()}. Location: ${location}, By: ${byWhom}`,
+        "c",
+        null,
+      ],
+    );
+
+    return { status: 1, message: "Orgasm recorded successfully" };
+  } catch (e) {
+    console.error("Error recording orgasm", e);
+    return { status: -1, message: "Error recording orgasm" };
+  }
+};
+
+const getOrgasmTypes = async (
+  search: string = "",
+): Promise<Array<{ id: number; type: string }>> => {
+  const queryText = `
+    SELECT id, type
+    FROM orgasm_type
+    WHERE LOWER(type) LIKE LOWER($1)
+  `;
+
+  const { rows } = await query(queryText, [`%${search}%`]);
+
+  return rows.map((row) => ({
+    id: row.id,
+    type: row.type,
+  }));
+};
+
 const UserModel = {
   create,
   getById,
@@ -2240,6 +2306,8 @@ const UserModel = {
   getCommunityImagesForVerification,
   verifyCommunityImage,
   updateUserTimeLimits,
+  recordOrgasm,
+  getOrgasmTypes,
 };
 
 export default UserModel;
