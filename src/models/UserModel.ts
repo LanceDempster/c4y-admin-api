@@ -2242,6 +2242,228 @@ const getOrgasmTypes = async (
   }));
 };
 
+const getDetailedAnalytics = async (userId: number) => {
+  const { rows: userRows } = await query(`SELECT * FROM users WHERE id = $1`, [
+    userId,
+  ]);
+
+  const { rows: trackerRows } = await query(
+    `SELECT * FROM tracker WHERE user_id = $1`,
+    [userId],
+  );
+
+  const { rows: gamesRows } = await query(
+    `SELECT * FROM user_solo_games WHERE user_id = $1`,
+    [userId],
+  );
+
+  const { rows: orgasmRows } = await query(
+    `SELECT uo.*, ot.type as orgasm_type
+     FROM user_orgasm uo
+     JOIN orgasm_type ot ON uo.type_id = ot.id
+     WHERE uo.userid = $1`,
+    [userId],
+  );
+
+  const { rows: achievementRows } = await query(
+    `SELECT * FROM user_achievement
+     WHERE game_id IN (SELECT id FROM user_solo_games WHERE user_id = $1)`,
+    [userId],
+  );
+
+  const { rows: lockedAchievementRows } = await query(
+    `SELECT COUNT(*) as locked_achievements_count FROM achievements
+     WHERE id NOT IN (SELECT achievement_id FROM user_achievement
+                      WHERE game_id IN (SELECT id FROM user_solo_games WHERE user_id = $1))`,
+    [userId],
+  );
+
+  const { rows: userDeviceRows } = await query(
+    `SELECT * FROM user_device_type WHERE user_id = $1`,
+    [userId],
+  );
+
+  const { rows: userLockRows } = await query(
+    `SELECT * FROM user_lock_type WHERE user_id = $1`,
+    [userId],
+  );
+
+  const { rows: userRewardRows } = await query(
+    `SELECT * FROM user_rewards WHERE user_id = $1`,
+    [userId],
+  );
+
+  const { rows: userPunishmentRows } = await query(
+    `SELECT * FROM user_punishments WHERE user_id = $1`,
+    [userId],
+  );
+
+  const { rows: userToyRows } = await query(
+    `SELECT * FROM user_toys WHERE user_id = $1`,
+    [userId],
+  );
+
+  const { rows: userProductRows } = await query(
+    `SELECT * FROM user_product WHERE user_id = $1`,
+    [userId],
+  );
+
+  const { rows: userSettingsRows } = await query(
+    `SELECT * FROM user_settings WHERE user_id = $1`,
+    [userId],
+  );
+
+  const orgasmTypes = orgasmRows.reduce((acc, orgasm) => {
+    acc[orgasm.orgasm_type] = (acc[orgasm.orgasm_type] || 0) + 1;
+    return acc;
+  }, {});
+
+  const orgasmFrequency = calculateOrgasmFrequency(orgasmRows);
+
+  // Generate heat map data for the last year
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+  const today = new Date();
+
+  const heatMapData = await query(
+    `
+    WITH RECURSIVE date_range AS (
+       SELECT $1::date AS date
+       UNION ALL
+       SELECT date + 1
+       FROM date_range
+       WHERE date < $2::date
+     ),
+     game_dates AS (
+       SELECT gs::date AS date
+       FROM user_solo_games,
+            generate_series((start_date + interval '1 day')::date, (end_date + interval '1 day')::date, '1 day'::interval) gs
+       WHERE user_id = $3
+         AND game_success = true
+         AND end_date >= $1
+         AND end_date < $2::date + 1
+     )
+     SELECT date_range.date as day, COUNT(game_dates.date) as count
+     FROM date_range
+     LEFT JOIN game_dates ON date_range.date = game_dates.date
+     GROUP BY day
+     ORDER BY day
+    `,
+    [oneYearAgo, today, userId],
+  );
+
+  const dayCount = Math.ceil(
+    (today.getTime() - oneYearAgo.getTime()) / (24 * 60 * 60 * 1000),
+  );
+  const heatMap = new Array(dayCount).fill(0).map((_, index) => {
+    const currentDate = new Date(
+      oneYearAgo.getTime() + index * 24 * 60 * 60 * 1000,
+    );
+    return {
+      date: currentDate.toISOString().split("T")[0],
+      value: 0,
+    };
+  });
+
+  heatMapData.rows.forEach((row) => {
+    const dayIndex = Math.floor(
+      (new Date(row.day).getTime() - oneYearAgo.getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+    if (dayIndex >= 0 && dayIndex < dayCount) {
+      heatMap[dayIndex].value = row.count > 0 ? 1 : 0;
+    }
+  });
+
+  // Generate orgasm heat map data for the last year
+  const orgasmHeatMapData = await query(
+    `SELECT date_trunc('day', orgasm_date + interval '1 day') as day, COUNT(*) as count
+     FROM user_orgasm
+     WHERE userid = $1 AND orgasm_date >= $2
+     GROUP BY day
+     ORDER BY day`,
+    [userId, oneYearAgo],
+  );
+
+  const orgasmHeatMap = new Array(dayCount).fill(0).map((_, index) => {
+    const currentDate = new Date(
+      oneYearAgo.getTime() + index * 24 * 60 * 60 * 1000,
+    );
+    return {
+      date: currentDate.toISOString().split("T")[0],
+      value: 0,
+    };
+  });
+
+  orgasmHeatMapData.rows.forEach((row) => {
+    const dayIndex = Math.floor(
+      (new Date(row.day).getTime() - oneYearAgo.getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+    if (dayIndex >= 0 && dayIndex < dayCount) {
+      orgasmHeatMap[dayIndex].value = row.count > 0 ? 1 : 0;
+    }
+  });
+
+  const analytics = {
+    user: userRows[0],
+    tracker: trackerRows[0],
+    totalGames: gamesRows.length,
+    completedGames: gamesRows.filter((game) => game.game_status === "completed")
+      .length,
+    failedGames: gamesRows.filter((game) => game.game_success === false).length,
+    averageLockupTime:
+      gamesRows.reduce((acc, game) => acc + game.total_lock_up_time, 0) /
+      gamesRows.length,
+    totalOrgasms: orgasmRows.length,
+    orgasmTypes,
+    orgasmFrequency,
+    achievementsUnlocked: achievementRows.length,
+    lockedAchievements: lockedAchievementRows[0].locked_achievements_count,
+    lastLoginDate: userRows[0].last_login,
+    accountCreationDate: userRows[0].account_create_date,
+    devices: userDeviceRows,
+    locks: userLockRows,
+    rewards: userRewardRows,
+    punishments: userPunishmentRows,
+    toys: userToyRows,
+    products: userProductRows,
+    settings: userSettingsRows[0],
+    heatMap,
+    orgasmHeatMap,
+  };
+
+  return recursiveToCamel(analytics);
+};
+
+const calculateOrgasmFrequency = (
+  orgasmRows: Array<{ orgasm_date: string }>,
+): string => {
+  if (orgasmRows.length === 0) return "No orgasms recorded";
+
+  const sortedOrgasms = orgasmRows.sort(
+    (a, b) =>
+      new Date(a.orgasm_date).getTime() - new Date(b.orgasm_date).getTime(),
+  );
+  const firstOrgasmDate = new Date(sortedOrgasms[0].orgasm_date);
+  const lastOrgasmDate = new Date(
+    sortedOrgasms[sortedOrgasms.length - 1].orgasm_date,
+  );
+  const daysBetween =
+    (lastOrgasmDate.getTime() - firstOrgasmDate.getTime()) /
+    (1000 * 60 * 60 * 24);
+
+  if (daysBetween === 0) return "Multiple orgasms in one day";
+
+  const frequency = daysBetween / orgasmRows.length;
+
+  if (frequency < 1) return `${Math.round(1 / frequency)} times per day`;
+  if (frequency < 7) return `${Math.round(7 / frequency)} times per week`;
+  if (frequency < 30) return `${Math.round(30 / frequency)} times per month`;
+  return `${Math.round(365 / frequency)} times per year`;
+};
+
 const UserModel = {
   create,
   getById,
@@ -2308,6 +2530,7 @@ const UserModel = {
   updateUserTimeLimits,
   recordOrgasm,
   getOrgasmTypes,
+  getDetailedAnalytics,
 };
 
 export default UserModel;

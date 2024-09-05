@@ -39,6 +39,12 @@ const upload = multer({
 
 const userRouter = Router();
 
+userRouter.get(
+  "/detailed-analysis",
+  authUser,
+  UserController.getDetailsAnalysis,
+);
+
 userRouter.get("/orgasm-types", authUser, UserController.getOrgasmTypes);
 
 userRouter.post("/record-orgasm", authUser, UserController.recordOrgasm);
