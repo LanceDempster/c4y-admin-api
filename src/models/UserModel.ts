@@ -1877,7 +1877,9 @@ const diaryMontly = async (userId: number) => {
     [userId],
   );
 
-  return rows;
+  const diary = rows.map((row) => recursiveToCamel(row));
+
+  return diary;
 };
 
 const getUserTracker = async (userId: number) => {
