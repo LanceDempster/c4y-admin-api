@@ -118,6 +118,7 @@ export const register: RequestHandler = async (req, res, next) => {
       accountCreateDate: new Date(),
       passwordCreateDate: new Date(),
       timezone: userData.timezone,
+      xpPoints: 5000,
     };
 
     let productCode = req.body.productCode;

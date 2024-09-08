@@ -44,6 +44,17 @@ export const create = async (user: User, productCode: number, next: any) => {
       return next(new BadRequest("Email is already registered"));
     }
 
+    // Get the starting level and rank
+    const { rows: startingLevel } = await query(
+      'SELECT id FROM levels ORDER BY "order" ASC LIMIT 1',
+      [],
+    );
+
+    const { rows: startingRank } = await query(
+      'SELECT id FROM ranks ORDER BY "order" ASC LIMIT 1',
+      [],
+    );
+
     const queryText =
       "INSERT INTO users (\
                 first_name, \
@@ -58,8 +69,10 @@ export const create = async (user: User, productCode: number, next: any) => {
                 account_create_date, \
                 email_validation, \
                 timezone, \
-                gender) \
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *";
+                gender, \
+                level_id, \
+                rank_id) \
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *";
 
     const { rows: userRows } = await query(queryText, [
       user.firstName,
@@ -75,6 +88,8 @@ export const create = async (user: User, productCode: number, next: any) => {
       user.emailValidation,
       user.timezone,
       user.gender,
+      startingLevel[0].id,
+      startingRank[0].id,
     ]);
 
     let insertedUser = userRows[0];
@@ -87,6 +102,27 @@ export const create = async (user: User, productCode: number, next: any) => {
     await query(
       "UPDATE register_product_code SET used = true WHERE code = $1",
       [productCode],
+    );
+
+    await query("UPDATE users SET xp_points = 5000 WHERE id = $1", [
+      insertedUser.id,
+    ]);
+
+    await query(
+      "INSERT INTO xp_change (amount, reason, date, user_id) VALUES ($1, $2, $3, $4)",
+      [5000, "Initial signup bonus", new Date(), insertedUser.id],
+    );
+
+    await query(
+      "INSERT INTO dairy (user_id, created_date, title, entry, type, product) VALUES ($1, $2, $3, $4, $5, $6)",
+      [
+        insertedUser.id,
+        new Date(),
+        "Welcome Bonus",
+        "You received 5000 points as a welcome bonus for signing up!",
+        "c",
+        productCodeRows[0].product_code,
+      ],
     );
 
     const res: User = recursiveToCamel(insertedUser);
