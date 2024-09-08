@@ -1046,7 +1046,16 @@ const getUserGames = async ({ userId }: { userId: number }) => {
              FROM game_verification_image
              WHERE game_id = user_solo_games.id
              ORDER BY date DESC
-             LIMIT 1) as latest_verification_time
+             LIMIT 1) as latest_verification_time,
+             COALESCE(
+               (SELECT date
+                FROM xp_change
+                WHERE user_id = user_solo_games.user_id
+                  AND game_id = user_solo_games.id
+                  AND reason = 'Daily lock XP'
+                  order by date desc
+                  limit 1
+             )) AS last_xp_award_date
      FROM user_solo_games
      LEFT JOIN cheater_punishment
                ON user_solo_games.id = cheater_punishment.game_id AND
@@ -1057,97 +1066,85 @@ const getUserGames = async ({ userId }: { userId: number }) => {
      LEFT JOIN punishments p4 ON punishment4id = p4.id
      LEFT JOIN punishments p5 ON punishment5id = p5.id
      LEFT JOIN game_verification_settings gvs ON user_solo_games.id = gvs.game_id
-     WHERE user_id = $1
-       AND game_status = 'In Game'`,
+     WHERE user_solo_games.user_id = $1
+       AND user_solo_games.game_status = 'In Game'`,
     [userId],
   );
 
+  const { rows: actionPointsRows } = await query(
+    `SELECT amount FROM action_points WHERE title = 'Daily Lock XP'`,
+    [],
+  );
+
+  const xpPerDay = actionPointsRows[0]?.amount;
+
   for (const game of rows) {
-    if (game.regularity && game.punishment_time) {
-      const startDate = new Date(game.start_date);
-      const currentDate = new Date();
-      const daysSinceStart = Math.floor(
-        (currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+    const startDate = new Date(game.start_date);
+    const currentDate = new Date();
+    const lastXpAwardDate = new Date(
+      game.last_xp_award_date ?? game.start_date,
+    );
+
+    console.log(lastXpAwardDate);
+
+    // Calculate days since start of the game
+    const daysSinceStart = Math.floor(
+      (currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    // Calculate days since last XP award
+    const daysSinceLastAward = Math.floor(
+      (currentDate.getTime() - lastXpAwardDate.getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+
+    if (daysSinceStart > 0 && daysSinceLastAward > 0) {
+      const xpToAward = xpPerDay;
+
+      // Award XP
+      await query(`UPDATE users SET xp_points = xp_points + $1 WHERE id = $2`, [
+        xpToAward,
+        userId,
+      ]);
+
+      // Record XP change
+      const { rows: actionPointRows } = await query(
+        `SELECT id FROM action_points WHERE title = 'Daily Lock XP'`,
+        [],
       );
-      const windows = Math.floor(daysSinceStart / game.regularity);
+      const actionPointId = actionPointRows[0]?.id;
 
-      let newPunishments = 0;
-      let punishedWindows = [];
-
-      for (let i = 0; i < windows; i++) {
-        const windowStartDate = new Date(
-          startDate.getTime() + i * game.regularity * 24 * 60 * 60 * 1000,
-        );
-        const windowEndDate = new Date(
-          windowStartDate.getTime() + game.regularity * 24 * 60 * 60 * 1000,
-        );
-
-        const { rows: verificationRows } = await query(
-          `SELECT * FROM game_verification_image
-           WHERE game_id = $1 AND date >= $2 AND date < $3 AND (verified IS NULL OR verified = true)`,
-          [game.id, windowStartDate, windowEndDate],
+      for (let i = 0; i < daysSinceStart; i++) {
+        await query(
+          `INSERT INTO xp_change (user_id, amount, reason, date, game_id, action_points_id)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            userId,
+            xpPerDay,
+            "Daily lock XP",
+            new Date(lastXpAwardDate.getTime() + (i + 1) * 24 * 60 * 60 * 1000),
+            game.id,
+            actionPointId,
+          ],
         );
 
-        if (verificationRows.length === 0) {
-          const { rows: punishmentRows } = await query(
-            `SELECT * FROM game_verification_punishment
-             WHERE game_id = $1 AND date > $2 AND date <= $3`,
-            [game.id, windowStartDate, windowEndDate],
-          );
-
-          if (punishmentRows.length === 0) {
-            await query(
-              `INSERT INTO game_verification_punishment (game_id, date)
-               VALUES ($1, $2)`,
-              [game.id, windowEndDate],
-            );
-
-            await query(
-              `INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-              [
-                userId,
-                windowEndDate,
-                "Verification Punishment",
-                `You missed a verification window and received a punishment of ${game.punishment_time} minutes added to your lock time.`,
-                "c",
-                rows[0]["product_code"],
-                game.id,
-              ],
-            );
-
-            await query(
-              `INSERT INTO countdown_changes (game_id, delta)
-               VALUES ($1, $2)`,
-              [game.id, game.punishment_time],
-            );
-
-            await query(
-              `UPDATE user_solo_games
-               SET end_date = end_date + ($2 * INTERVAL '1 minute')
-               WHERE id = $1
-               RETURNING end_date`,
-              [game.id, game.punishment_time],
-            );
-
-            newPunishments++;
-            punishedWindows.push(i + 1);
-            game.punishment_count = (game.punishment_count || 0) + 1;
-          }
-        }
+        // Add diary entry
+        await query(
+          `INSERT INTO dairy (user_id, created_date, title, entry, type, game_id)
+           VALUES ($1, $2, $3, $4, 'c', $5)`,
+          [
+            userId,
+            new Date(lastXpAwardDate.getTime() + (i + 1) * 24 * 60 * 60 * 1000),
+            "Daily Lock XP Awarded",
+            `You earned ${xpPerDay} XP for being locked for another day.`,
+            game.id,
+          ],
+        );
       }
 
-      // Update the end_date in the game object if punishments were applied
-      if (newPunishments > 0) {
-        const { rows: updatedGameRows } = await query(
-          `SELECT end_date FROM user_solo_games WHERE id = $1`,
-          [game.id],
-        );
-        game.end_date = updatedGameRows[0].end_date;
-
-        game.new_punishments = newPunishments;
-        game.punished_windows = punishedWindows;
-      }
+      // Update game object with new XP info
+      game.xpAwarded = xpToAward;
+      game.daysAwarded = daysSinceLastAward;
     }
   }
 
