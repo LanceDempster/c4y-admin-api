@@ -1541,84 +1541,72 @@ const submitWheel = async ({
     [gameId],
   );
 
-  switch (type) {
-    case 1:
-      {
-        accepted &&
-          (await query(
-            `UPDATE user_solo_games
-                 SET end_date = end_date + ($2 * INTERVAL '1 minute')
-                 WHERE id = $1`,
-            [gameId, itemName],
-          ));
-      }
+  // Get the points for the wheel spin activity
+  const { rows: activityPoints } = await query(
+    `SELECT amount FROM action_points WHERE title = 'Wheel Spin'`,
+    [],
+  );
+  const wheelSpinPoints = activityPoints[0]?.amount || 0;
 
-      {
-        accepted &&
-          (await query(
-            "INSERT INTO countdown_changes (game_id, delta) VALUES ($1, $2)",
-            [gameId, itemName],
-          ));
-      }
+  const addDiaryEntry = async (title: string, entry: string) => {
+    await query(
+      "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [userId, new Date(), title, entry, "c", rows[0].id, gameId],
+    );
+  };
 
-      {
-        accepted
-          ? await query(
-              "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-              [
-                userId,
-                new Date(),
-                "Accepted wheel spin",
-                `You have accepted your results from the wheel and changed the lock up time by ${convertMinutesToDHM(parseInt(itemName))}`,
-                "c",
-                rows[0].id,
-                gameId,
-              ],
-            )
-          : await query(
-              "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-              [
-                userId,
-                new Date(),
-                "Rejected wheel spin",
-                `You have rejected your results from the wheel by ${convertMinutesToDHM(parseInt(itemName))}`,
-                "c",
-                rows[0].id,
-                gameId,
-              ],
-            );
-      }
+  const awardPoints = async () => {
+    await query(`UPDATE users SET xp_points = xp_points + $1 WHERE id = $2`, [
+      wheelSpinPoints,
+      userId,
+    ]);
 
-      break;
-    case 2:
-      {
-        accepted
-          ? await query(
-              "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-              [
-                userId,
-                new Date(),
-                "Accept wheel spin",
-                `You have accepted your results from the wheel ${itemName}`,
-                "c",
-                rows[0].id,
-                gameId,
-              ],
-            )
-          : await query(
-              "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-              [
-                userId,
-                new Date(),
-                "Reject wheel spin",
-                `You have rejected your results from the wheel ${itemName}`,
-                "c",
-                rows[0].id,
-                gameId,
-              ],
-            );
-      }
-      break;
+    await query(
+      `INSERT INTO xp_change (user_id, amount, reason, date, game_id)
+       VALUES ($1, $2, $3, NOW(), $4)`,
+      [userId, wheelSpinPoints, "Accepted wheel spin", gameId],
+    );
+  };
+
+  if (accepted) {
+    if (type === 1) {
+      await query(
+        `UPDATE user_solo_games
+             SET end_date = end_date + ($2 * INTERVAL '1 minute')
+             WHERE id = $1`,
+        [gameId, itemName],
+      );
+
+      await query(
+        "INSERT INTO countdown_changes (game_id, delta) VALUES ($1, $2)",
+        [gameId, itemName],
+      );
+
+      await awardPoints();
+
+      await addDiaryEntry(
+        "Accepted wheel spin",
+        `You have accepted your results from the wheel and changed the lock up time by ${convertMinutesToDHM(
+          parseInt(itemName),
+        )}. You earned ${wheelSpinPoints} XP!`,
+      );
+    } else if (type === 2) {
+      await awardPoints();
+
+      await addDiaryEntry(
+        "Accept wheel spin",
+        `You have accepted your results from the wheel ${itemName}. You earned ${wheelSpinPoints} XP!`,
+      );
+    }
+  } else {
+    const rejectEntry =
+      type === 1
+        ? `You have rejected your results from the wheel by ${convertMinutesToDHM(
+            parseInt(itemName),
+          )}`
+        : `You have rejected your results from the wheel ${itemName}`;
+
+    await addDiaryEntry("Rejected wheel spin", rejectEntry);
   }
 
   return 1;
