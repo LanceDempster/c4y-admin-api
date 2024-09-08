@@ -2068,7 +2068,7 @@ const claimAchievement = async (
 
     const { rowCount, rows } = await query(
       `INSERT INTO user_achievement (achievement_id, date, game_id)
-             VALUES ($1, NOW(), $2)`,
+              VALUES ($1, NOW(), $2)`,
       [achievementId, gameId],
     );
 
@@ -2078,6 +2078,38 @@ const claimAchievement = async (
         message: `Failed to claim achievement: ${JSON.stringify(rows)}`,
       };
     }
+
+    // Get achievement details
+    const { rows: achievementDetails } = await query(
+      `SELECT name, points FROM achievements WHERE id = $1`,
+      [achievementId],
+    );
+    const achievementName = achievementDetails[0].name;
+    const achievementPoints = achievementDetails[0].points;
+
+    // Add diary entry
+    await query(
+      `INSERT INTO dairy (user_id, created_date, title, entry, type)
+        VALUES ($1, NOW(), $2, $3, 'c')`,
+      [
+        userId,
+        "Achievement Unlocked",
+        `You have achieved the "${achievementName}" achievement and earned ${achievementPoints} XP!`,
+      ],
+    );
+
+    // Update user's XP
+    await query(`UPDATE users SET xp_points = xp_points + $1 WHERE id = $2`, [
+      achievementPoints,
+      userId,
+    ]);
+
+    // Record XP change
+    await query(
+      `INSERT INTO xp_change (user_id, amount, reason, date)
+        VALUES ($1, $2, $3, NOW())`,
+      [userId, achievementPoints, `Unlocked achievement: ${achievementName}`],
+    );
 
     return { status: 1, message: "Achievement claimed successfully" };
   } else if (achievementCheck.status === 2) {
