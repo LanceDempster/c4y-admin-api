@@ -2159,7 +2159,55 @@ const uploadVerificationImage = async (
       return { status: -1, message: "Failed to upload verification image" };
     }
 
-    return { status: 1, message: "Verification image uploaded successfully" };
+    // Get userId from gameId
+    const { rows: userIdRows } = await query(
+      `SELECT user_id
+       FROM user_solo_games
+       WHERE id = $1`,
+      [gameId],
+    );
+    const userId = userIdRows[0]?.user_id;
+
+    if (!userId) {
+      return { status: -1, message: "User not found for this game" };
+    }
+
+    // Get XP points for image verification
+    const { rows: actionPointsRows } = await query(
+      `SELECT amount FROM action_points WHERE title = 'Image Verification'`,
+      [],
+    );
+    const verificationPoints = actionPointsRows[0]?.amount || 0;
+
+    // Award XP to the user
+    await query(`UPDATE users SET xp_points = xp_points + $1 WHERE id = $2`, [
+      verificationPoints,
+      userId,
+    ]);
+
+    // Record XP change
+    await query(
+      `INSERT INTO xp_change (user_id, amount, reason, date, game_id)
+       VALUES ($1, $2, $3, NOW(), $4)`,
+      [userId, verificationPoints, "Image Verification", gameId],
+    );
+
+    // Add diary entry
+    await query(
+      `INSERT INTO dairy (user_id, created_date, title, entry, type, game_id)
+       VALUES ($1, NOW(), $2, $3, 'c', $4)`,
+      [
+        userId,
+        "Image Verification Completed",
+        `You have successfully uploaded a verification image and earned ${verificationPoints} XP!`,
+        gameId,
+      ],
+    );
+
+    return {
+      status: 1,
+      message: `Verification image uploaded successfully. You earned ${verificationPoints} XP!`,
+    };
   } catch (e) {
     console.error("Error uploading verification image", e);
     return { status: -1, message: "Error uploading verification image" };
