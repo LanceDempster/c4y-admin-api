@@ -1085,8 +1085,6 @@ const getUserGames = async ({ userId }: { userId: number }) => {
       game.last_xp_award_date ?? game.start_date,
     );
 
-    console.log(lastXpAwardDate);
-
     // Calculate days since start of the game
     const daysSinceStart = Math.floor(
       (currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
@@ -1099,7 +1097,7 @@ const getUserGames = async ({ userId }: { userId: number }) => {
     );
 
     if (daysSinceStart > 0 && daysSinceLastAward > 0) {
-      const xpToAward = xpPerDay;
+      const xpToAward = xpPerDay * daysSinceStart;
 
       // Award XP
       await query(`UPDATE users SET xp_points = xp_points + $1 WHERE id = $2`, [
