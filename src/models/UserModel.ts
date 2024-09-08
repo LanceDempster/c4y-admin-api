@@ -2500,6 +2500,43 @@ const calculateOrgasmFrequency = (
   return `${Math.round(365 / frequency)} times per year`;
 };
 
+const getUserRank = async (
+  userId: number,
+): Promise<{
+  rank: string;
+  level: number;
+  currentXP: number;
+  nextLevelXP: number;
+  rankImage: string;
+}> => {
+  const { rows: userRows } = await query(
+    `SELECT users.xp_points, users.level_id, users.rank_id,
+            ranks.name AS rank_name, ranks.image AS rank_image,
+            current_level.name AS current_level_name, current_level.requiredpoints AS current_level_points,
+            next_level.name AS next_level_name, next_level.requiredpoints AS next_level_points
+     FROM users
+     JOIN ranks ON users.rank_id = ranks.id
+     JOIN levels AS current_level ON users.level_id = current_level.id
+     JOIN levels AS next_level ON current_level.order + 1 = next_level.order
+     WHERE users.id = $1`,
+    [userId],
+  );
+
+  if (userRows.length === 0) {
+    throw new Error("User not found");
+  }
+
+  const user = userRows[0];
+
+  return {
+    rank: user.rank_name,
+    level: userRows[0].current_level_name,
+    currentXP: user.xp_points,
+    nextLevelXP: user.next_level_points,
+    rankImage: user.rank_image,
+  };
+};
+
 const UserModel = {
   create,
   getById,
@@ -2567,6 +2604,7 @@ const UserModel = {
   recordOrgasm,
   getOrgasmTypes,
   getDetailedAnalytics,
+  getUserRank,
 };
 
 export default UserModel;

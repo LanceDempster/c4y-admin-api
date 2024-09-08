@@ -39,6 +39,8 @@ const upload = multer({
 
 const userRouter = Router();
 
+userRouter.get("/rank", authUser, UserController.getUserRank);
+
 userRouter.get(
   "/detailed-analysis",
   authUser,
