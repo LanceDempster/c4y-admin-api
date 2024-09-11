@@ -1,20 +1,20 @@
-import { Router } from "express";
-import { bodyValidation, queryValidation } from "../middlewares/Validation";
-import { LoginSchema } from "../schemas/Login";
+import {Router} from "express";
+import {bodyValidation, queryValidation} from "../middlewares/Validation";
+import {LoginSchema} from "../schemas/Login";
 import * as UserController from "../controllers/UserController";
-import { UserRegisterSchema } from "../schemas/UserResister";
-import { ForgotPasswordSchema } from "../schemas/ForgotPassword";
-import { ResetPasswordSchema } from "../schemas/ResetPassword";
-import { UserSearchSchema } from "../schemas/UserSearch";
-import { authAdmin, authUser } from "../middlewares/Auth";
-import { UserUpdateSchema } from "../schemas/UserUpdate";
-import { ChangePasswordSchema } from "../schemas/changePasswordSchema";
+import {UserRegisterSchema} from "../schemas/UserResister";
+import {ForgotPasswordSchema} from "../schemas/ForgotPassword";
+import {ResetPasswordSchema} from "../schemas/ResetPassword";
+import {UserSearchSchema} from "../schemas/UserSearch";
+import {authAdmin, authUser} from "../middlewares/Auth";
+import {UserUpdateSchema} from "../schemas/UserUpdate";
+import {ChangePasswordSchema} from "../schemas/changePasswordSchema";
 
 import multer from "multer";
-import { fromEnv } from "@aws-sdk/credential-providers"; // ES6 import
+import {fromEnv} from "@aws-sdk/credential-providers"; // ES6 import
 import crypto from "crypto";
 
-import { S3Client } from "@aws-sdk/client-s3";
+import {S3Client} from "@aws-sdk/client-s3";
 import multerS3 from "multer-s3";
 
 const s3Client = new S3Client({
@@ -29,7 +29,7 @@ const upload = multer({
     s3: s3Client,
     bucket: bucketName,
     metadata: function (req, file, cb) {
-      cb(null, { fieldName: file.fieldname });
+      cb(null, {fieldName: file.fieldname});
     },
     key: function (req, file, cb) {
       cb(null, crypto.randomUUID());

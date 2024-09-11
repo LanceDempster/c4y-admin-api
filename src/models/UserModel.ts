@@ -1150,7 +1150,7 @@ const handleDeltaXp = async (userId: number, amount: number, reason: string, dat
 
   await query(`
       UPDATE users
-      SET xp_points = xp_points + $1
+      SET xp_points = GREATEST(0, xp_points + $1)
       WHERE id = $2
   `, [amount, userId]);
 };
@@ -1433,6 +1433,16 @@ const cancelUserGame = async ({
 
   const gameType = gameRows[0]?.game_type || "Self-Managed";
 
+  const {rows: actionPointsRows} = await query(
+    `SELECT amount, id
+     FROM action_points
+     WHERE title = 'Cancel Game'`,
+    [],
+  );
+  const cancelGamePoints = actionPointsRows[0]?.amount || 0;
+
+  await handleDeltaXp(userId, cancelGamePoints, "User Canceled Game", new Date(), gameId, actionPointsRows[1])
+
   await query(
     `INSERT Into dairy(user_id, created_date, title, entry, type, product, game_id)
      values ($1, $2, $3, $4, $5, $6, $7)`,
@@ -1440,7 +1450,7 @@ const cancelUserGame = async ({
       userId,
       new Date(),
       "Game Canceled",
-      `Canceled ${gameType} game using the cancel button`,
+      `Canceled ${gameType} game using the cancel button and lost ${Math.abs(cancelGamePoints)}`,
       "c",
       productRows[0]["product_code"],
       gameId,
