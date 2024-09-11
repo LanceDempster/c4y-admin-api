@@ -1,21 +1,22 @@
-import { query } from "../db";
-import { DeviceType } from "../interfaces/DeviceType";
-import { LockType } from "../interfaces/LockType";
-import { Punishment } from "../interfaces/Punishment";
-import { Reward } from "../interfaces/Reward";
-import { Toy } from "../interfaces/Toy";
-import { User } from "../interfaces/User";
-import { UserProductFull } from "../interfaces/UserProductFull";
-import { DiaryType } from "../interfaces/DiaryType";
-import { compare, hash } from "bcrypt";
-import { isValidPassword } from "../utils/helperFunctions";
-import { Ticket } from "../interfaces/Ticket";
+import {query} from "../db";
+import {DeviceType} from "../interfaces/DeviceType";
+import {LockType} from "../interfaces/LockType";
+import {Punishment} from "../interfaces/Punishment";
+import {Reward} from "../interfaces/Reward";
+import {Toy} from "../interfaces/Toy";
+import {User} from "../interfaces/User";
+import {UserProductFull} from "../interfaces/UserProductFull";
+import {DiaryType} from "../interfaces/DiaryType";
+import {compare, hash} from "bcrypt";
+import {isValidPassword} from "../utils/helperFunctions";
+import {Ticket} from "../interfaces/Ticket";
 import assert from "node:assert";
 import BadRequest from "../errors/BadRequest";
+import UserGame from "../schemas/UserGame";
 
 export const create = async (user: User, productCode: number, next: any) => {
   try {
-    const { rows: productCodeRows } = await query(
+    const {rows: productCodeRows} = await query(
       "SELECT product_code FROM register_product_code WHERE code = $1 AND used = false",
       [productCode],
     );
@@ -25,7 +26,7 @@ export const create = async (user: User, productCode: number, next: any) => {
     }
 
     // Check if the username already exists
-    const { rows: existingUsername } = await query(
+    const {rows: existingUsername} = await query(
       "SELECT username FROM users WHERE username = $1",
       [user.username],
     );
@@ -35,7 +36,7 @@ export const create = async (user: User, productCode: number, next: any) => {
     }
 
     // Check if the email already exists
-    const { rows: existingEmail } = await query(
+    const {rows: existingEmail} = await query(
       "SELECT email FROM users WHERE email = $1",
       [user.email],
     );
@@ -45,12 +46,12 @@ export const create = async (user: User, productCode: number, next: any) => {
     }
 
     // Get the starting level and rank
-    const { rows: startingLevel } = await query(
+    const {rows: startingLevel} = await query(
       'SELECT id FROM levels ORDER BY "order" ASC LIMIT 1',
       [],
     );
 
-    const { rows: startingRank } = await query(
+    const {rows: startingRank} = await query(
       'SELECT id FROM ranks ORDER BY "order" ASC LIMIT 1',
       [],
     );
@@ -74,7 +75,7 @@ export const create = async (user: User, productCode: number, next: any) => {
                 rank_id) \
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *";
 
-    const { rows: userRows } = await query(queryText, [
+    const {rows: userRows} = await query(queryText, [
       user.firstName,
       user.lastName,
       user.username,
@@ -136,7 +137,7 @@ export const create = async (user: User, productCode: number, next: any) => {
 };
 
 export const getById = async (id: number = 0) => {
-  const { rows } = await query(
+  const {rows} = await query(
     "SELECT users.*, user_settings.user_url, user_settings.avatar_url FROM users left join user_settings on users.id = user_settings.user_id WHERE users.id=$1",
     [id],
   );
@@ -150,7 +151,7 @@ export const getById = async (id: number = 0) => {
 };
 
 export const getAll = async () => {
-  const { rows } = await query("SELECT * FROM users", []);
+  const {rows} = await query("SELECT * FROM users", []);
   return rows.map((x: User) => {
     // const newX = recursiveToCamel(x);
     return {
@@ -170,15 +171,13 @@ export const getUserProducts = async (
 ) => {
   if (page < 1) page = 1;
 
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT *, product.id as product_id, count(*) OVER () AS count
-         FROM user_product
-                  inner join product on user_product.product_code = product.product_code
-         WHERE user_product.user_id = ($1)
-         ORDER BY id ASC
-         LIMIT 10
-         OFFSET
-            (($2 - 1) * 10)`,
+     FROM user_product
+              inner join product on user_product.product_code = product.product_code
+     WHERE user_product.user_id = ($1)
+     ORDER BY id ASC
+     LIMIT 10 OFFSET (($2 - 1) * 10)`,
     [userId, page],
   );
 
@@ -189,7 +188,7 @@ export const getUserProducts = async (
 };
 
 export const getByEmail = async (email: string) => {
-  const { rows } = await query("SELECT * FROM users WHERE email = $1", [email]);
+  const {rows} = await query("SELECT * FROM users WHERE email = $1", [email]);
 
   if (!rows[0]) return undefined;
 
@@ -218,10 +217,11 @@ export const updateById = async (id: number = 0, newProps: any) => {
   }
 
   const queryText = `UPDATE users
-                       SET ${querys.join(",")}
-                       WHERE id = $1 RETURNING *`;
+                     SET ${querys.join(",")}
+                     WHERE id = $1
+                     RETURNING *`;
 
-  const { rows } = await query(queryText, [id, ...values]);
+  const {rows} = await query(queryText, [id, ...values]);
 
   const user: User = recursiveToCamel(rows[0]);
   return user;
@@ -240,10 +240,10 @@ export const getOne = async (props: any) => {
   }
 
   const queryText = `SELECT *
-                       FROM users
-                       WHERE ${querys.join(" AND ")}`;
+                     FROM users
+                     WHERE ${querys.join(" AND ")}`;
 
-  const { rows } = await query(queryText, [...values]);
+  const {rows} = await query(queryText, [...values]);
 
   const user: User = recursiveToCamel(rows[0]);
   return user;
@@ -262,20 +262,20 @@ export const getMany = async (props: any) => {
   }
 
   const queryText = `SELECT *
-                       FROM users
-                       WHERE ${querys.join(" AND ")}`;
+                     FROM users
+                     WHERE ${querys.join(" AND ")}`;
 
-  const { rows } = await query(queryText, [...values]);
+  const {rows} = await query(queryText, [...values]);
 
   return rows.map((x) => recursiveToCamel(x) as User);
 };
 
 // the implementation of the function to filter the users following the general style of the project
 export const getTotalActiveUsers = async () => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT account_status, COUNT(*) as user_count
-         FROM users
-         GROUP BY account_status`,
+     FROM users
+     GROUP BY account_status`,
     [],
   );
 
@@ -301,12 +301,12 @@ export const search = async (
 
   // added order by to the query
   let queryText = `SELECT users.*, count(user_product.*) as products_count
-                     FROM users
-                              left join user_product on users.id = user_product.user_id
-                     WHERE ${querys.join(" OR ")}
-                     GROUP By users.id
-                     ORDER BY users.${orderBy ?? "id"} ${orderDirection ?? "asc"}
-                     LIMIT 10 OFFSET (($${i} - 1) * 10)`;
+                   FROM users
+                            left join user_product on users.id = user_product.user_id
+                   WHERE ${querys.join(" OR ")}
+                   GROUP By users.id
+                   ORDER BY users.${orderBy ?? "id"} ${orderDirection ?? "asc"}
+                   LIMIT 10 OFFSET (($${i} - 1) * 10)`;
 
   if (values.length === 0) {
     queryText = queryText.replace("WHERE", "");
@@ -314,7 +314,7 @@ export const search = async (
 
   if (page < 1) page = 1;
 
-  const { rows } = await query(queryText, [...values, page]);
+  const {rows} = await query(queryText, [...values, page]);
 
   return [
     rows.map((x) => recursiveToCamel(x) as User),
@@ -323,13 +323,13 @@ export const search = async (
 };
 
 const count = async () => {
-  const { rows } = await query("SELECT COUNT(*) FROM users", []);
+  const {rows} = await query("SELECT COUNT(*) FROM users", []);
 
   return rows[0];
 };
 
 const getSettings = async (id: string) => {
-  const { rows } = await query(
+  const {rows} = await query(
     "SELECT * FROM user_settings WHERE user_id = $1",
     [id],
   );
@@ -342,7 +342,7 @@ const getSettings = async (id: string) => {
 };
 
 const ifNoUserSettingsCreate = async (userId: number) => {
-  const { rows } = await query(
+  const {rows} = await query(
     "SELECT * FROM user_settings WHERE user_id = $1",
     [userId],
   );
@@ -371,15 +371,16 @@ const updateSettings1 = async ({
   ifNoUserSettingsCreate(id);
 
   const queryText = `UPDATE user_settings
-                       SET community            = $2,
-                           game_messages        = $3,
-                           marketing_messages   = $4,
-                           keyholder            = $5,
-                           user_story           = $6,
-                           product_setup_status = 1
-                       WHERE user_id = $1 RETURNING *`;
+                     SET community            = $2,
+                         game_messages        = $3,
+                         marketing_messages   = $4,
+                         keyholder            = $5,
+                         user_story           = $6,
+                         product_setup_status = 1
+                     WHERE user_id = $1
+                     RETURNING *`;
 
-  const { rows } = await query(queryText, [
+  const {rows} = await query(queryText, [
     id,
     community,
     gameMessages,
@@ -407,14 +408,15 @@ const updateSettings1v2 = async ({
   id: number;
 }) => {
   const queryText = `UPDATE user_settings
-                       SET community          = $2,
-                           game_messages      = $3,
-                           marketing_messages = $4,
-                           keyholder          = $5,
-                           user_story         = $6
-                       WHERE user_id = $1 RETURNING *`;
+                     SET community          = $2,
+                         game_messages      = $3,
+                         marketing_messages = $4,
+                         keyholder          = $5,
+                         user_story         = $6
+                     WHERE user_id = $1
+                     RETURNING *`;
 
-  const { rows } = await query(queryText, [
+  const {rows} = await query(queryText, [
     id,
     community,
     gameMessages,
@@ -426,40 +428,41 @@ const updateSettings1v2 = async ({
   return true;
 };
 
-const updateSettings2 = async ({ id }: { id: number }) => {
-  const { rows } = await query(
+const updateSettings2 = async ({id}: { id: number }) => {
+  const {rows} = await query(
     `SELECT product_code
-         FROM user_product
-         WHERE user_id = $1`,
+     FROM user_product
+     WHERE user_id = $1`,
     [id],
   );
 
   // Check if the user already has a diary entry
-  const { rowCount } = await query(
+  const {rowCount} = await query(
     `SELECT 1
-         FROM dairy
-         WHERE user_id = $1`,
+     FROM dairy
+     WHERE user_id = $1`,
     [id],
   );
 
   if (rowCount === 0) {
-    const { rows } = await query(
+    const {rows} = await query(
       `SELECT product_code
-             FROM user_product
-             where user_id = $1`,
+       FROM user_product
+       where user_id = $1`,
       [id],
     );
 
     const queryText = `update user_settings
-                           set product_setup_status = 2
-                           where user_id = $1 RETURNING *`;
+                       set product_setup_status = 2
+                       where user_id = $1
+                       RETURNING *`;
 
     await query(queryText, [id]);
 
     const queryText2 = `
-            INSERT INTO dairy
-                (user_id, created_date, title, entry, type, product)
-            VALUES ($1, $2, $3, $4, $5, $6)`;
+        INSERT INTO dairy
+            (user_id, created_date, title, entry, type, product)
+        VALUES ($1, $2, $3, $4, $5, $6)`;
 
     await query(queryText2, [
       id,
@@ -483,19 +486,20 @@ const updateSettings3 = async ({
 }) => {
   // Delete current user devices
   const deleteQueryText = `DELETE
-                             FROM user_device_type
-                             WHERE user_id = $1`;
+                           FROM user_device_type
+                           WHERE user_id = $1`;
   await query(deleteQueryText, [id]);
 
   const queryText = `update user_settings
-                       set product_setup_status = 3
-                       where user_id = $1 RETURNING *`;
+                     set product_setup_status = 3
+                     where user_id = $1
+                     RETURNING *`;
 
   await query(queryText, [id]);
 
   const queryText2 = `INSERT INTO user_device_type (user_id, device_type)
-                        values ($1, $2)
-                        RETURNING *`;
+                      values ($1, $2)
+                      RETURNING *`;
 
   deviceIds.forEach(async (deviceId) => {
     await query(queryText2, [id, deviceId]);
@@ -513,19 +517,20 @@ const updateSettings4 = async ({
 }) => {
   // Delete current user devices
   const deleteQueryText = `DELETE
-                             FROM user_lock_type
-                             WHERE user_id = $1`;
+                           FROM user_lock_type
+                           WHERE user_id = $1`;
   await query(deleteQueryText, [id]);
 
   const queryText = `update user_settings
-                       set product_setup_status = 4
-                       where user_id = $1 RETURNING *`;
+                     set product_setup_status = 4
+                     where user_id = $1
+                     RETURNING *`;
 
   await query(queryText, [id]);
 
   const queryText2 = `INSERT INTO user_lock_type (user_id, lock_type_id)
-                        values ($1, $2)
-                        RETURNING *`;
+                      values ($1, $2)
+                      RETURNING *`;
 
   lockIds.forEach(async (lockId) => {
     await query(queryText2, [id, lockId]);
@@ -543,19 +548,20 @@ const updateSettings5 = async ({
 }) => {
   // Delete current user devices
   const deleteQueryText = `DELETE
-                             FROM user_rewards
-                             WHERE user_id = $1`;
+                           FROM user_rewards
+                           WHERE user_id = $1`;
   await query(deleteQueryText, [id]);
 
   const queryText = `update user_settings
-                       set product_setup_status = 5
-                       where user_id = $1 RETURNING *`;
+                     set product_setup_status = 5
+                     where user_id = $1
+                     RETURNING *`;
 
   await query(queryText, [id]);
 
   const queryText2 = `INSERT INTO user_rewards (user_id, reward_id)
-                        values ($1, $2)
-                        RETURNING *`;
+                      values ($1, $2)
+                      RETURNING *`;
 
   rewardsIds.forEach(async (rewardId) => {
     await query(queryText2, [id, rewardId]);
@@ -573,19 +579,20 @@ const updateSettings6 = async ({
 }) => {
   // Delete current user devices
   const deleteQueryText = `DELETE
-                             FROM user_punishments
-                             WHERE user_id = $1`;
+                           FROM user_punishments
+                           WHERE user_id = $1`;
   await query(deleteQueryText, [id]);
 
   const queryText = `update user_settings
-                       set product_setup_status = 6
-                       where user_id = $1 RETURNING *`;
+                     set product_setup_status = 6
+                     where user_id = $1
+                     RETURNING *`;
 
   await query(queryText, [id]);
 
   const queryText2 = `INSERT INTO user_punishments (user_id, punishment_id)
-                        values ($1, $2)
-                        RETURNING *`;
+                      values ($1, $2)
+                      RETURNING *`;
 
   punishmentsIds.forEach(async (punishmentId) => {
     await query(queryText2, [id, punishmentId]);
@@ -603,19 +610,20 @@ const updateSettings7 = async ({
 }) => {
   // Delete current user devices
   const deleteQueryText = `DELETE
-                             FROM user_toys
-                             WHERE user_id = $1`;
+                           FROM user_toys
+                           WHERE user_id = $1`;
   await query(deleteQueryText, [id]);
 
   const queryText = `update user_settings
-                       set product_setup_status = 7
-                       where user_id = $1 RETURNING *`;
+                     set product_setup_status = 7
+                     where user_id = $1
+                     RETURNING *`;
 
   await query(queryText, [id]);
 
   const queryText2 = `INSERT INTO user_toys (user_id, toy_id)
-                        values ($1, $2)
-                        RETURNING *`;
+                      values ($1, $2)
+                      RETURNING *`;
 
   toysIds.forEach(async (toyId) => {
     await query(queryText2, [id, toyId]);
@@ -634,11 +642,12 @@ const updateSettings8 = async ({
   minimum: number;
 }) => {
   const queryText = `update user_settings
-                       set product_setup_status = 8,
-                           min_time             = $3,
-                           max_time             =
-                               $2
-                       where user_id = $1 RETURNING *`;
+                     set product_setup_status = 8,
+                         min_time             = $3,
+                         max_time             =
+                             $2
+                     where user_id = $1
+                     RETURNING *`;
 
   await query(queryText, [id, maximum, minimum]);
 
@@ -653,9 +662,10 @@ const updateSettings9 = async ({
   keyStorage: number;
 }) => {
   const queryText = `update user_settings
-                       set product_setup_status = 9,
-                           key_storage          = $2
-                       where user_id = $1 RETURNING *`;
+                     set product_setup_status = 9,
+                         key_storage          = $2
+                     where user_id = $1
+                     RETURNING *`;
 
   await query(queryText, [id, keyStorage]);
 
@@ -670,9 +680,10 @@ const updateSettings10 = async ({
   fileLocation: string;
 }) => {
   const queryText = `update user_settings
-                       set product_setup_status = 10,
-                           user_url             = $2
-                       where user_id = $1 RETURNING *`;
+                     set product_setup_status = 10,
+                         user_url             = $2
+                     where user_id = $1
+                     RETURNING *`;
 
   await query(queryText, [id, fileLocation]);
 
@@ -687,9 +698,10 @@ const updateSettings11 = async ({
   fileLocation: string;
 }) => {
   const queryText = `update user_settings
-                       set product_setup_status = 11,
-                           avatar_url           = $2
-                       where user_id = $1 RETURNING *`;
+                     set product_setup_status = 11,
+                         avatar_url           = $2
+                     where user_id = $1
+                     RETURNING *`;
 
   await query(queryText, [id, fileLocation]);
 
@@ -704,8 +716,9 @@ const updateProfilePicture = async ({
   fileLocation: string;
 }) => {
   const queryText = `update user_settings
-                       set user_url = $2
-                       where user_id = $1 RETURNING *`;
+                     set user_url = $2
+                     where user_id = $1
+                     RETURNING *`;
 
   await query(queryText, [id, fileLocation]);
 
@@ -720,8 +733,9 @@ const updateAvatarPicture = async ({
   fileLocation: string;
 }) => {
   const queryText = `update user_settings
-                       set avatar_url = $2
-                       where user_id = $1 RETURNING *`;
+                     set avatar_url = $2
+                     where user_id = $1
+                     RETURNING *`;
 
   await query(queryText, [id, fileLocation]);
 
@@ -729,11 +743,11 @@ const updateAvatarPicture = async ({
 };
 
 const getUserDevices = async (id: string) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT *
-         FROM user_device_type
-                  left join device_type on user_device_type.device_type = device_type.id
-         WHERE user_id = $1`,
+     FROM user_device_type
+              left join device_type on user_device_type.device_type = device_type.id
+     WHERE user_id = $1`,
     [id],
   );
 
@@ -743,13 +757,13 @@ const getUserDevices = async (id: string) => {
 };
 
 const getUserTickets = async (id: string) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT tickets.*, ticket_status.name as ticket_status_name
-         FROM tickets
-                  left join ticket_status on tickets.ticket_status = ticket_status.id
-         WHERE user_id = $1
-         order by ticket_status
-        `,
+     FROM tickets
+              left join ticket_status on tickets.ticket_status = ticket_status.id
+     WHERE user_id = $1
+     order by ticket_status
+    `,
     [id],
   );
 
@@ -759,11 +773,11 @@ const getUserTickets = async (id: string) => {
 };
 
 const getUserLocks = async (id: string) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT *
-         FROM user_lock_type
-                  left join lock_type on user_lock_type.lock_type_id = lock_type.id
-         WHERE user_id = $1`,
+     FROM user_lock_type
+              left join lock_type on user_lock_type.lock_type_id = lock_type.id
+     WHERE user_id = $1`,
     [id],
   );
 
@@ -773,11 +787,11 @@ const getUserLocks = async (id: string) => {
 };
 
 const getUserRewards = async (id: string) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT *
-         FROM user_rewards
-                  left join rewards on user_rewards.reward_id = rewards.id
-         WHERE user_id = $1`,
+     FROM user_rewards
+              left join rewards on user_rewards.reward_id = rewards.id
+     WHERE user_id = $1`,
     [id],
   );
 
@@ -787,11 +801,11 @@ const getUserRewards = async (id: string) => {
 };
 
 const getUserPunishments = async (id: string) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT *
-         FROM user_punishments
-                  left join punishments on user_punishments.punishment_id = punishments.id
-         WHERE user_id = $1`,
+     FROM user_punishments
+              left join punishments on user_punishments.punishment_id = punishments.id
+     WHERE user_id = $1`,
     [id],
   );
 
@@ -801,11 +815,11 @@ const getUserPunishments = async (id: string) => {
 };
 
 const getUserToys = async (id: string) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT *
-         FROM user_toys
-                  left join toys on user_toys.toy_id = toys.id
-         WHERE user_id = $1`,
+     FROM user_toys
+              left join toys on user_toys.toy_id = toys.id
+     WHERE user_id = $1`,
     [id],
   );
 
@@ -815,13 +829,13 @@ const getUserToys = async (id: string) => {
 };
 
 const getDiary = async (date: string, id: string) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT *
-         FROM dairy
-         WHERE date_trunc('day', dairy.created_date) = $1
-           and user_id = $2
-         order by created_date
-        `,
+     FROM dairy
+     WHERE date_trunc('day', dairy.created_date) = $1
+       and user_id = $2
+     order by created_date
+    `,
     [date, id],
   );
 
@@ -860,11 +874,11 @@ const addTicket = async (
   if (
     await query(
       `INSERT INTO tickets (user_id, user_email, ticket_title, description, ticket_category_id,
-                                  ticket_priority_id,
-                                  ticket_status)
-             VALUES ($1, $2, $3, $4, $5,
-                     (SELECT id FROM ticket_priority WHERE name = 'Medium'),
-                     (SELECT id FROM ticket_status WHERE name = 'Open'));`,
+                            ticket_priority_id,
+                            ticket_status)
+       VALUES ($1, $2, $3, $4, $5,
+               (SELECT id FROM ticket_priority WHERE name = 'Medium'),
+               (SELECT id FROM ticket_status WHERE name = 'Open'));`,
       [userId, userEmail, title, description, category],
     )
   ) {
@@ -915,13 +929,14 @@ const updateUserProfile = async ({
   timezone: string;
 }) => {
   const queryText = `update users
-                       set first_name    = $2,
-                           last_name     = $3,
-                           gender        = $4,
-                           date_of_birth = $5,
-                           country       = $6,
-                           timezone      = $7
-                       where id = $1 RETURNING *`;
+                     set first_name    = $2,
+                         last_name     = $3,
+                         gender        = $4,
+                         date_of_birth = $5,
+                         country       = $6,
+                         timezone      = $7
+                     where id = $1
+                     RETURNING *`;
 
   await query(queryText, [
     id,
@@ -945,10 +960,10 @@ const userChangePassword = async ({
   oldPassword: string;
   newPassword: string;
 }) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `select password
-         from users
-         where id = $1`,
+     from users
+     where id = $1`,
     [id],
   );
 
@@ -966,8 +981,9 @@ const userChangePassword = async ({
 
   let res = await query(
     `update users
-         set password = $2
-         where id = $1 RETURNING *`,
+     set password = $2
+     where id = $1
+     RETURNING *`,
     [id, newPassword],
   );
 
@@ -983,14 +999,15 @@ const userChangeEmail = async ({
 }) => {
   let res = await query(
     `update users
-         set email = $2
-         where id = $1 RETURNING *`,
+     set email = $2
+     where id = $1
+     RETURNING *`,
     [id, newEmail],
   );
 
   let res0 = await query(
     `INSERT INTO user_email_history (user_id, email)
-         VALUES ($1, $2)`,
+     VALUES ($1, $2)`,
     [id, newEmail],
   );
 
@@ -1005,148 +1022,273 @@ const toggleStatus = async ({
   ticketId: number;
 }) => {
   const queryText = `
-        WITH current_status AS (SELECT ts.name
-                                FROM tickets t
-                                         JOIN ticket_status ts ON t.ticket_status = ts.id
-                                WHERE t.user_id = $1
-                                  AND t.id = $2),
-             status_update AS (SELECT id
-                               FROM ticket_status
-                               WHERE name = (CASE
-                                                 WHEN (SELECT name FROM current_status) = 'Closed' THEN 'Open'
-                                                 ELSE 'Closed'
-                                   END))
-        UPDATE tickets
-        SET ticket_status = (SELECT id FROM status_update)
-        WHERE user_id = $1
-          AND id = $2 RETURNING *`;
+      WITH current_status AS (SELECT ts.name
+                              FROM tickets t
+                                       JOIN ticket_status ts ON t.ticket_status = ts.id
+                              WHERE t.user_id = $1
+                                AND t.id = $2),
+           status_update AS (SELECT id
+                             FROM ticket_status
+                             WHERE name = (CASE
+                                               WHEN (SELECT name FROM current_status) = 'Closed' THEN 'Open'
+                                               ELSE 'Closed'
+                                 END))
+      UPDATE tickets
+      SET ticket_status = (SELECT id FROM status_update)
+      WHERE user_id = $1
+        AND id = $2
+      RETURNING *`;
 
   await query(queryText, [userId, ticketId]);
 
   return true;
 };
 
-const getUserGames = async ({ userId }: { userId: number }) => {
-  const { rows } = await query(
-    `SELECT user_solo_games.*,
-            cheater_punishment.id as cheater_wheel_id,
-            p1.name               as punishment1Name,
-            p2.name               as punishment2Name,
-            p3.name               as punishment3Name,
-            p4.name               as punishment4Name,
-            p5.name               as punishment5Name,
-            gvs.regularity,
-            gvs.punishment_time,
-            (SELECT image_url
-             FROM game_verification_image
-             WHERE game_id = user_solo_games.id
-             ORDER BY date DESC
-             LIMIT 1) as latest_verification_image,
-            (SELECT date
-             FROM game_verification_image
-             WHERE game_id = user_solo_games.id
-             ORDER BY date DESC
-             LIMIT 1) as latest_verification_time,
-             COALESCE(
-               (SELECT date
-                FROM xp_change
-                WHERE user_id = user_solo_games.user_id
-                  AND game_id = user_solo_games.id
-                  AND reason = 'Daily lock XP'
-                  order by date desc
-                  limit 1
-             )) AS last_xp_award_date
-     FROM user_solo_games
-     LEFT JOIN cheater_punishment
-               ON user_solo_games.id = cheater_punishment.game_id AND
-                  cheater_punishment.state = 1
-     LEFT JOIN punishments p1 ON punishment1id = p1.id
-     LEFT JOIN punishments p2 ON punishment2id = p2.id
-     LEFT JOIN punishments p3 ON punishment3id = p3.id
-     LEFT JOIN punishments p4 ON punishment4id = p4.id
-     LEFT JOIN punishments p5 ON punishment5id = p5.id
-     LEFT JOIN game_verification_settings gvs ON user_solo_games.id = gvs.game_id
-     WHERE user_solo_games.user_id = $1
-       AND user_solo_games.game_status = 'In Game'`,
-    [userId],
-  );
 
-  const { rows: actionPointsRows } = await query(
-    `SELECT amount FROM action_points WHERE title = 'Daily Lock XP'`,
-    [],
-  );
+const getUserGames = async ({userId}: { userId: number }): Promise<UserGame[]> => {
+  let game = await fetchUserGames(userId);
 
-  const xpPerDay = actionPointsRows[0]?.amount;
+  if (!game) return []
 
-  for (const game of rows) {
+  const xpPerDay = await fetchDailyLockXP();
+
+  game = await dailyLockXpCheck(game, userId, xpPerDay);
+  game = await failedVerificationsCheck(game, userId);
+
+  return [game];
+};
+
+/* fetch game function */
+const fetchUserGames = async (userId: number): Promise<UserGame> => {
+  const {rows} = await query(`
+      SELECT user_solo_games.*,
+             cheater_punishment.id as cheater_wheel_id,
+             p1.name               as punishment1Name,
+             p2.name               as punishment2Name,
+             p3.name               as punishment3Name,
+             p4.name               as punishment4Name,
+             p5.name               as punishment5Name,
+             gvs.regularity,
+             gvs.punishment_time,
+             (SELECT image_url
+              FROM game_verification_image
+              WHERE game_id = user_solo_games.id
+              ORDER BY date DESC
+              LIMIT 1)             as latest_verification_image,
+             (SELECT date
+              FROM game_verification_image
+              WHERE game_id = user_solo_games.id
+              ORDER BY date DESC
+              LIMIT 1)             as latest_verification_time,
+             (SELECT date
+              FROM xp_change
+              WHERE user_id = user_solo_games.user_id
+                AND game_id = user_solo_games.id
+                AND reason = 'Daily lock XP'
+              ORDER BY date DESC
+              LIMIT 1)             AS last_xp_award_date
+      FROM user_solo_games
+               LEFT JOIN cheater_punishment
+                         ON user_solo_games.id = cheater_punishment.game_id AND cheater_punishment.state = 1
+               LEFT JOIN punishments p1 ON punishment1id = p1.id
+               LEFT JOIN punishments p2 ON punishment2id = p2.id
+               LEFT JOIN punishments p3 ON punishment3id = p3.id
+               LEFT JOIN punishments p4 ON punishment4id = p4.id
+               LEFT JOIN punishments p5 ON punishment5id = p5.id
+               LEFT JOIN game_verification_settings gvs ON user_solo_games.id = gvs.game_id
+      WHERE user_solo_games.user_id = $1
+        AND user_solo_games.game_status = 'In Game'
+  `, [userId]);
+
+  return rows[0];
+};
+
+const fetchDailyLockXP = async (): Promise<number> => {
+  const {rows} = await query(`
+      SELECT amount
+      FROM action_points
+      WHERE title = 'Daily Lock XP'
+  `, []);
+  return rows[0]?.amount || 0;
+};
+
+const dailyLockXpCheck = async (game: UserGame, userId: number, xpPerDay: number): Promise<UserGame> => {
+  const startDate = new Date(game.start_date);
+  const currentDate = new Date();
+  const lastXpAwardDate = new Date(game.last_xp_award_date ?? game.start_date);
+
+  const daysSinceStart = Math.floor((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const daysSinceLastAward = Math.floor((currentDate.getTime() - lastXpAwardDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (daysSinceStart > 0 && daysSinceLastAward > 0) {
+    const xpToAward = xpPerDay * daysSinceLastAward;
+    await awardXP(userId, xpToAward);
+    await recordXPChanges(userId, game.id, xpPerDay, daysSinceLastAward, lastXpAwardDate);
+    await addDiaryEntries(userId, game.id, xpPerDay, daysSinceLastAward, lastXpAwardDate);
+
+    game.xpAwarded = xpToAward;
+    game.daysAwarded = daysSinceLastAward;
+  }
+
+  return game;
+};
+
+const awardXP = async (userId: number, xpToAward: number): Promise<void> => {
+  await query(`
+      UPDATE users
+      SET xp_points = xp_points + $1
+      WHERE id = $2
+  `, [xpToAward, userId]);
+};
+
+const recordXPChanges = async (userId: number, gameId: number, xpPerDay: number, daysSinceStart: number, lastXpAwardDate: Date): Promise<void> => {
+  const actionPointId = await fetchActionPointId();
+
+  for (let i = 0; i < daysSinceStart; i++) {
+    const date = new Date(lastXpAwardDate.getTime() + (i + 1) * 24 * 60 * 60 * 1000);
+    await query(`
+        INSERT INTO xp_change (user_id, amount, reason, date, game_id, action_points_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
+    `, [userId, xpPerDay, "Daily lock XP", date, gameId, actionPointId]);
+  }
+};
+
+const fetchActionPointId = async (): Promise<number> => {
+  const {rows} = await query(`
+      SELECT id
+      FROM action_points
+      WHERE title = 'Daily Lock XP'
+  `, []);
+  return rows[0]?.id;
+};
+
+const addDiaryEntries = async (userId: number, gameId: number, xpPerDay: number, daysSinceStart: number, lastXpAwardDate: Date): Promise<void> => {
+  for (let i = 0; i < daysSinceStart; i++) {
+    const date = new Date(lastXpAwardDate.getTime() + (i + 1) * 24 * 60 * 60 * 1000);
+    await query(`
+        INSERT INTO dairy (user_id, created_date, title, entry, type, game_id)
+        VALUES ($1, $2, $3, $4, 'c', $5)
+    `, [userId, date, "Daily Lock XP Awarded", `You earned ${xpPerDay} XP for being locked for another day.`, gameId]);
+  }
+};
+
+const failedVerificationsCheck = async (game: UserGame, userId: number): Promise<UserGame> => {
+  if (game.regularity && game.punishment_time) {
     const startDate = new Date(game.start_date);
     const currentDate = new Date();
-    const lastXpAwardDate = new Date(
-      game.last_xp_award_date ?? game.start_date,
-    );
+    const daysSinceStart = Math.floor((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const windows = Math.floor(daysSinceStart / game.regularity);
 
-    // Calculate days since start of the game
-    const daysSinceStart = Math.floor(
-      (currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    let newPunishments = 0;
+    let punishedWindows = [];
 
-    // Calculate days since last XP award
-    const daysSinceLastAward = Math.floor(
-      (currentDate.getTime() - lastXpAwardDate.getTime()) /
-        (1000 * 60 * 60 * 24),
-    );
+    for (let i = 0; i < windows; i++) {
+      const windowStartDate = new Date(startDate.getTime() + i * game.regularity * 24 * 60 * 60 * 1000);
+      const windowEndDate = new Date(windowStartDate.getTime() + game.regularity * 24 * 60 * 60 * 1000);
 
-    if (daysSinceStart > 0 && daysSinceLastAward > 0) {
-      const xpToAward = xpPerDay * daysSinceStart;
+      const verificationExists = await checkVerification(game.id, windowStartDate, windowEndDate);
+      const punishmentExists = await checkPunishment(game.id, windowStartDate, windowEndDate);
 
-      // Award XP
-      await query(`UPDATE users SET xp_points = xp_points + $1 WHERE id = $2`, [
-        xpToAward,
-        userId,
-      ]);
-
-      // Record XP change
-      const { rows: actionPointRows } = await query(
-        `SELECT id FROM action_points WHERE title = 'Daily Lock XP'`,
-        [],
-      );
-      const actionPointId = actionPointRows[0]?.id;
-
-      for (let i = 0; i < daysSinceStart; i++) {
-        await query(
-          `INSERT INTO xp_change (user_id, amount, reason, date, game_id, action_points_id)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [
-            userId,
-            xpPerDay,
-            "Daily lock XP",
-            new Date(lastXpAwardDate.getTime() + (i + 1) * 24 * 60 * 60 * 1000),
-            game.id,
-            actionPointId,
-          ],
-        );
-
-        // Add diary entry
-        await query(
-          `INSERT INTO dairy (user_id, created_date, title, entry, type, game_id)
-           VALUES ($1, $2, $3, $4, 'c', $5)`,
-          [
-            userId,
-            new Date(lastXpAwardDate.getTime() + (i + 1) * 24 * 60 * 60 * 1000),
-            "Daily Lock XP Awarded",
-            `You earned ${xpPerDay} XP for being locked for another day.`,
-            game.id,
-          ],
-        );
+      if (!verificationExists && !punishmentExists) {
+        await applyPunishment(game, userId, windowEndDate);
+        newPunishments++;
+        punishedWindows.push(i + 1);
+        game.punishment_count = (game.punishment_count || 0) + 1;
       }
+    }
 
-      // Update game object with new XP info
-      game.xpAwarded = xpToAward;
-      game.daysAwarded = daysSinceLastAward;
+    if (newPunishments > 0) {
+      game.end_date = await updateGameEndDate(game.id);
+      game.new_punishments = newPunishments;
+      game.punished_windows = punishedWindows;
     }
   }
 
-  return rows;
+  return game;
+};
+
+const checkVerification = async (gameId: number, startDate: Date, endDate: Date): Promise<boolean> => {
+  const {rows} = await query(`
+      SELECT *
+      FROM game_verification_image
+      WHERE game_id = $1
+        AND date >= $2
+        AND date < $3
+        AND (verified IS NULL OR verified = true)
+  `, [gameId, startDate, endDate]);
+  return rows.length > 0;
+};
+
+const checkPunishment = async (gameId: number, startDate: Date, endDate: Date): Promise<boolean> => {
+  const {rows} = await query(`
+      SELECT *
+      FROM game_verification_punishment
+      WHERE game_id = $1
+        AND date > $2
+        AND date <= $3
+  `, [gameId, startDate, endDate]);
+  return rows.length > 0;
+};
+
+const applyPunishment = async (game: UserGame, userId: number, windowEndDate: Date): Promise<void> => {
+  await query(`
+      INSERT INTO game_verification_punishment (game_id, date)
+      VALUES ($1, $2)
+  `, [game.id, windowEndDate]);
+
+  const {rows: actionPointRows} = await query(
+    "SELECT amount FROM action_points WHERE title = 'Missed Verification'"
+    , []
+  )
+
+  const xpLoss = actionPointRows[0]?.amount || 0
+  const actionPointId = actionPointRows[0]?.id || 0
+
+  await query(`
+      INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+  `, [
+    userId,
+    windowEndDate,
+    "Verification Punishment",
+    `You missed a verification window and received a punishment of ${game.punishment_time} minutes added to your lock time and also lost ${Math.abs(xpLoss)}.`,
+    "c",
+    game.product_code,
+    game.id
+  ]);
+
+  await query(`
+      INSERT INTO countdown_changes (game_id, delta)
+      VALUES ($1, $2)
+  `, [game.id, game.punishment_time]);
+
+  await query(`
+      UPDATE user_solo_games
+      SET end_date = end_date + ($2 * INTERVAL '1 minute')
+      WHERE id = $1
+  `, [game.id, game.punishment_time]);
+
+  await query(`
+      UPDATE users
+      SET xp_points = xp_points + $1
+      WHERE id = $2
+  `, [xpLoss, userId])
+
+  await query(`
+      INSERT INTO xp_change (user_id, amount, reason, date, game_id, action_points_id)
+      VALUES ($1, $2, $3, $4, $5, $6)
+  `, [userId, xpLoss, "Missed Verification", windowEndDate, game.id, actionPointId]);
+};
+
+/* End fetch game function */
+
+const updateGameEndDate = async (gameId: number): Promise<string> => {
+  const {rows} = await query(`
+      SELECT end_date
+      FROM user_solo_games
+      WHERE id = $1
+  `, [gameId]);
+  return rows[0].end_date;
 };
 
 const addUserGame = async ({
@@ -1178,12 +1320,12 @@ const addUserGame = async ({
     ) {
       assert(
         minimumWheelPercentage >= 10 &&
-          minimumWheelPercentage <= maximumWheelPercentage,
+        minimumWheelPercentage <= maximumWheelPercentage,
         "Minimum Wheel Percentage must be more than 10 and less than Max Wheel Percentage",
       );
       assert(
         maximumWheelPercentage <= 50 &&
-          maximumWheelPercentage >= minimumWheelPercentage,
+        maximumWheelPercentage >= minimumWheelPercentage,
         "Max Wheel Percentage must be less than 50 and more than Min Wheel Percentage",
       );
     }
@@ -1193,10 +1335,10 @@ const addUserGame = async ({
   }
 
   try {
-    const { rows } = await query(
+    const {rows} = await query(
       `SELECT product_code
-             FROM user_product
-             WHERE user_id = $1`,
+       FROM user_product
+       WHERE user_id = $1`,
       [userId],
     );
 
@@ -1204,8 +1346,8 @@ const addUserGame = async ({
     if (gameType === "Stop Watch") {
       result = await query(
         `INSERT INTO user_solo_games (user_id, game_status, game_type, start_date)
-             VALUES ($1, $2, $3, now()::timestamp)
-             RETURNING id`,
+         VALUES ($1, $2, $3, now()::timestamp)
+         RETURNING id`,
         [userId, "In Game", "Stop Watch"],
       );
     } else {
@@ -1215,11 +1357,11 @@ const addUserGame = async ({
 
       result = await query(
         `INSERT INTO user_solo_games (user_id, game_status, game_type, start_date, end_date, original_end_date,
-                                          minimum_wheel_percentage, maximum_wheel_percentage)
-             VALUES ($1, $2, $3, now()::timestamp, now()::timestamp + ($4 * INTERVAL '1 minute'),
-                     now()::timestamp + ($4 * INTERVAL '1 minute'),
-                     $5, $6)
-             RETURNING id`,
+                                      minimum_wheel_percentage, maximum_wheel_percentage)
+         VALUES ($1, $2, $3, now()::timestamp, now()::timestamp + ($4 * INTERVAL '1 minute'),
+                 now()::timestamp + ($4 * INTERVAL '1 minute'),
+                 $5, $6)
+         RETURNING id`,
         [
           userId,
           "In Game",
@@ -1275,7 +1417,7 @@ const addUserGame = async ({
 
     await query(
       `INSERT Into dairy(user_id, created_date, title, entry, type, product, game_id)
-             values ($1, $2, $3, $4, $5, $6, $7)`,
+       values ($1, $2, $3, $4, $5, $6, $7)`,
       [
         userId,
         new Date(),
@@ -1301,17 +1443,17 @@ const cancelUserGame = async ({
   userId: number;
   gameId: number;
 }) => {
-  const { rows: productRows } = await query(
+  const {rows: productRows} = await query(
     `SELECT product_code
-         FROM user_product
-         WHERE user_id = $1`,
+     FROM user_product
+     WHERE user_id = $1`,
     [userId],
   );
 
-  const { rows: gameRows } = await query(
+  const {rows: gameRows} = await query(
     `SELECT game_type
-         FROM user_solo_games
-         WHERE id = $1`,
+     FROM user_solo_games
+     WHERE id = $1`,
     [gameId],
   );
 
@@ -1319,7 +1461,7 @@ const cancelUserGame = async ({
 
   await query(
     `INSERT Into dairy(user_id, created_date, title, entry, type, product, game_id)
-         values ($1, $2, $3, $4, $5, $6, $7)`,
+     values ($1, $2, $3, $4, $5, $6, $7)`,
     [
       userId,
       new Date(),
@@ -1354,11 +1496,11 @@ const generateWheelInstance = async ({
   userId: number;
   size: number;
 }) => {
-  const { rows: rows } = await query(
+  const {rows: rows} = await query(
     `SELECT *
-         FROM game_wheel_instance
-         WHERE game_id = $1
-           AND created_date >= NOW() - INTERVAL '24 hours'`,
+     FROM game_wheel_instance
+     WHERE game_id = $1
+       AND created_date >= NOW() - INTERVAL '24 hours'`,
     [gameId],
   );
 
@@ -1368,12 +1510,12 @@ const generateWheelInstance = async ({
 
   switch (type) {
     case 1:
-      let { rows } = await query(
+      let {rows} = await query(
         `SELECT *
-                 FROM user_solo_games
-                 WHERE id = $1
-                 order by id desc
-                 limit 1`,
+         FROM user_solo_games
+         WHERE id = $1
+         order by id desc
+         limit 1`,
         [gameId],
       );
 
@@ -1400,16 +1542,16 @@ const generateWheelInstance = async ({
       if (size === 5) {
         await query(
           `INSERT Into game_wheel_instance(punishment_time1, punishment_time2, punishment_time3,
-                                                     reward_time1, game_id)
-                     values ($1, $2, $3, $4, $5)`,
+                                           reward_time1, game_id)
+           values ($1, $2, $3, $4, $5)`,
           [...amounts, rows[0]["id"]],
         );
       } else if (size === 7) {
         await query(
           `INSERT Into game_wheel_instance(punishment_time1, punishment_time2, punishment_time3,
-                                                     punishment_time4,
-                                                     reward_time1, reward_time2, game_id)
-                     values ($1, $2, $3, $4, $5, $6, $7)`,
+                                           punishment_time4,
+                                           reward_time1, reward_time2, game_id)
+           values ($1, $2, $3, $4, $5, $6, $7)`,
           [...amounts, rows[0]["id"]],
         );
       }
@@ -1456,17 +1598,17 @@ const generateWheelInstance = async ({
 
       if (size === 5) {
         insertQuery = `
-                    INSERT INTO game_wheel_instance (punishment1id, punishment2id, punishment3id, reward1id,
-                                                     game_id)
-                    VALUES ($1, $2, $3, $4, $5)
-                `;
+            INSERT INTO game_wheel_instance (punishment1id, punishment2id, punishment3id, reward1id,
+                                             game_id)
+            VALUES ($1, $2, $3, $4, $5)
+        `;
       } else if (size === 7) {
         insertQuery = `
-                    INSERT INTO game_wheel_instance (punishment1id, punishment2id, punishment3id, punishment4id,
-                                                     reward1id, reward2id,
-                                                     game_id)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
-                `;
+            INSERT INTO game_wheel_instance (punishment1id, punishment2id, punishment3id, punishment4id,
+                                             reward1id, reward2id,
+                                             game_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `;
       }
 
       await query(insertQuery, [...punishments, ...reward, gameId]);
@@ -1476,24 +1618,24 @@ const generateWheelInstance = async ({
   return 1;
 };
 
-const getWheelInstance = async ({ gameId }: { gameId: string }) => {
-  const { rows } = await query(
+const getWheelInstance = async ({gameId}: { gameId: string }) => {
+  const {rows} = await query(
     `SELECT *,
-                p1.name as punishment1_name,
-                p2.name as punishment2_name,
-                p3.name as punishment3_name,
-                p4.name as punishment4_name,
-                r1.name as reward1_name,
-                r2.name as reward2_name
-         FROM game_wheel_instance
-                  left join punishments p1 on punishment1id = p1.id
-                  left join punishments p2 on punishment2id = p2.id
-                  left join punishments p3 on punishment3id = p3.id
-                  left join punishments p4 on punishment4id = p4.id
-                  left join rewards r1 on reward1id = r1.id
-                  left join rewards r2 on reward2id = r2.id
-         WHERE game_id = $1
-           AND created_date >= NOW() - INTERVAL '24 hours'`,
+            p1.name as punishment1_name,
+            p2.name as punishment2_name,
+            p3.name as punishment3_name,
+            p4.name as punishment4_name,
+            r1.name as reward1_name,
+            r2.name as reward2_name
+     FROM game_wheel_instance
+              left join punishments p1 on punishment1id = p1.id
+              left join punishments p2 on punishment2id = p2.id
+              left join punishments p3 on punishment3id = p3.id
+              left join punishments p4 on punishment4id = p4.id
+              left join rewards r1 on reward1id = r1.id
+              left join rewards r2 on reward2id = r2.id
+     WHERE game_id = $1
+       AND created_date >= NOW() - INTERVAL '24 hours'`,
     [gameId],
   );
 
@@ -1527,23 +1669,25 @@ const submitWheel = async ({
   accepted: boolean;
   userId: number;
 }) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT product_code
-         FROM user_product
-         WHERE user_id = $1`,
+     FROM user_product
+     WHERE user_id = $1`,
     [userId],
   );
 
   await query(
     `UPDATE game_wheel_instance
-         SET status = 2
-         WHERE game_id = $1`,
+     SET status = 2
+     WHERE game_id = $1`,
     [gameId],
   );
 
   // Get the points for the wheel spin activity
-  const { rows: activityPoints } = await query(
-    `SELECT amount FROM action_points WHERE title = 'Wheel Spin'`,
+  const {rows: activityPoints} = await query(
+    `SELECT amount
+     FROM action_points
+     WHERE title = 'Wheel Spin'`,
     [],
   );
   const wheelSpinPoints = activityPoints[0]?.amount || 0;
@@ -1556,7 +1700,9 @@ const submitWheel = async ({
   };
 
   const awardPoints = async () => {
-    await query(`UPDATE users SET xp_points = xp_points + $1 WHERE id = $2`, [
+    await query(`UPDATE users
+                 SET xp_points = xp_points + $1
+                 WHERE id = $2`, [
       wheelSpinPoints,
       userId,
     ]);
@@ -1572,8 +1718,8 @@ const submitWheel = async ({
     if (type === 1) {
       await query(
         `UPDATE user_solo_games
-             SET end_date = end_date + ($2 * INTERVAL '1 minute')
-             WHERE id = $1`,
+         SET end_date = end_date + ($2 * INTERVAL '1 minute')
+         WHERE id = $1`,
         [gameId, itemName],
       );
 
@@ -1602,8 +1748,8 @@ const submitWheel = async ({
     const rejectEntry =
       type === 1
         ? `You have rejected your results from the wheel by ${convertMinutesToDHM(
-            parseInt(itemName),
-          )}`
+          parseInt(itemName),
+        )}`
         : `You have rejected your results from the wheel ${itemName}`;
 
     await addDiaryEntry("Rejected wheel spin", rejectEntry);
@@ -1619,10 +1765,10 @@ const userCheated = async ({
   gameId: string;
   userId: number;
 }) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT product_code
-         FROM user_product
-         WHERE user_id = $1`,
+     FROM user_product
+     WHERE user_id = $1`,
     [userId],
   );
 
@@ -1653,9 +1799,9 @@ const userCheated = async ({
 
   await query(
     `INSERT INTO cheater_punishment
-         (punishment1id, punishment2id, punishment3id, punishment4id, punishment5id,
-          game_id)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+     (punishment1id, punishment2id, punishment3id, punishment4id, punishment5id,
+      game_id)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
     [...punishments, gameId],
   );
 };
@@ -1673,53 +1819,53 @@ const submitCheatingWheel = async ({
   accepted: boolean;
   userId: number;
 }) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT product_code
-         FROM user_product
-         WHERE user_id = $1`,
+     FROM user_product
+     WHERE user_id = $1`,
     [userId],
   );
 
   await query(
     `UPDATE cheater_punishment
-         SET state = 2
-         WHERE id = $1`,
+     SET state = 2
+     WHERE id = $1`,
     [cheaterWheelId],
   );
 
   await query(
     `UPDATE user_solo_games
-         SET game_status = 'completed'
-         WHERE id = $1
-           and user_id = $2`,
+     SET game_status = 'completed'
+     WHERE id = $1
+       and user_id = $2`,
     [gameId, userId],
   );
 
   accepted
     ? await query(
-        "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        [
-          userId,
-          new Date(),
-          "Accept cheating wheel spin",
-          `You cheated in your self-managed countdown game and accepted your results from the wheel ${itemName}`,
-          "c",
-          rows[0].id,
-          gameId,
-        ],
-      )
+      "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [
+        userId,
+        new Date(),
+        "Accept cheating wheel spin",
+        `You cheated in your self-managed countdown game and accepted your results from the wheel ${itemName}`,
+        "c",
+        rows[0].id,
+        gameId,
+      ],
+    )
     : await query(
-        "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-        [
-          userId,
-          new Date(),
-          "Reject cheating wheel spin",
-          `You cheated in your self-managed countdown game and rejected your results from the wheel ${itemName}`,
-          "c",
-          rows[0].id,
-          gameId,
-        ],
-      );
+      "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [
+        userId,
+        new Date(),
+        "Reject cheating wheel spin",
+        `You cheated in your self-managed countdown game and rejected your results from the wheel ${itemName}`,
+        "c",
+        rows[0].id,
+        gameId,
+      ],
+    );
 
   return 1;
 };
@@ -1733,57 +1879,59 @@ const submitGame = async ({
   userId: number;
   acceptedExtraTime: boolean;
 }) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT product_code
-         FROM user_product
-         WHERE user_id = $1`,
+     FROM user_product
+     WHERE user_id = $1`,
     [userId],
   );
 
-  const { rows: gameTypeRows } = await query(
+  const {rows: gameTypeRows} = await query(
     `SELECT game_type
-         FROM user_solo_games
-         WHERE id = $1`,
+     FROM user_solo_games
+     WHERE id = $1`,
     [gameId],
   );
 
   const gameType = gameTypeRows[0].game_type;
   const isStopWatch = gameTypeRows[0].game_type === "Stop Watch";
 
-  const { rows: updateRows } = await query(
+  const {rows: updateRows} = await query(
     `UPDATE user_solo_games
-         SET game_status        = 'completed',
-             game_success       = true,
-             end_date           = $3,
-             original_end_date  = $3,
-             total_lock_up_time = CASE
-                                    WHEN $4 THEN EXTRACT(EPOCH FROM ($3 - start_date)) / 60
-                                    ELSE (EXTRACT(EPOCH FROM (original_end_date - start_date)) / 60) +
-                                         (CASE WHEN $5 THEN EXTRACT(EPOCH FROM ($3 - end_date)) / 60 ELSE 0 END)
-                                  END
-         WHERE id = $1
-           and user_id = $2 RETURNING total_lock_up_time`,
+     SET game_status        = 'completed',
+         game_success       = true,
+         end_date           = $3,
+         original_end_date  = $3,
+         total_lock_up_time = CASE
+                                  WHEN $4 THEN EXTRACT(EPOCH FROM ($3 - start_date)) / 60
+                                  ELSE (EXTRACT(EPOCH FROM (original_end_date - start_date)) / 60) +
+                                       (CASE WHEN $5 THEN EXTRACT(EPOCH FROM ($3 - end_date)) / 60 ELSE 0 END)
+             END
+     WHERE id = $1
+       and user_id = $2
+     RETURNING total_lock_up_time`,
     [gameId, userId, new Date(), isStopWatch, acceptedExtraTime],
   );
 
-  const { rows: userTrackRows } = await query(
+  const {rows: userTrackRows} = await query(
     `SELECT *
-             FROM tracker
-             WHERE user_id = $1`,
+     FROM tracker
+     WHERE user_id = $1`,
     [userId],
   );
 
   if (userTrackRows.length === 0) {
     await query(
-      `INSERT INTO tracker (user_id, running_total_lockup, total_games_played, last_locked_date, longest_lockup, longest_lockup_period_end)
-                   VALUES ($1, $2, 1, NOW(), $2, NOW())`,
+      `INSERT INTO tracker (user_id, running_total_lockup, total_games_played, last_locked_date, longest_lockup,
+                            longest_lockup_period_end)
+       VALUES ($1, $2, 1, NOW(), $2, NOW())`,
       [userId, updateRows[0].total_lock_up_time],
     );
   } else {
-    const { rows: longestLockupRows } = await query(
+    const {rows: longestLockupRows} = await query(
       `SELECT longest_lockup
-           FROM tracker
-           WHERE user_id = $1`,
+       FROM tracker
+       WHERE user_id = $1`,
       [userId],
     );
 
@@ -1792,19 +1940,19 @@ const submitGame = async ({
     ) {
       await query(
         `UPDATE tracker
-             SET longest_lockup = $2,
-                 longest_lockup_period_end = NOW()
-             WHERE user_id = $1`,
+         SET longest_lockup            = $2,
+             longest_lockup_period_end = NOW()
+         WHERE user_id = $1`,
         [userId, updateRows[0].total_lock_up_time],
       );
     }
 
     await query(
       `UPDATE tracker
-                 SET running_total_lockup = running_total_lockup + $2,
-                     total_games_played = total_games_played + 1,
-                     last_locked_date = NOW()
-                 WHERE user_id = $1`,
+       SET running_total_lockup = running_total_lockup + $2,
+           total_games_played   = total_games_played + 1,
+           last_locked_date     = NOW()
+       WHERE user_id = $1`,
       [userId, updateRows[0].total_lock_up_time],
     );
   }
@@ -1849,9 +1997,9 @@ const toggleDailySpin = async ({
 }) => {
   await query(
     `UPDATE user_solo_games
-         SET daily_spin = $3
-         WHERE id = $1
-           and user_id = $2`,
+     SET daily_spin = $3
+     WHERE id = $1
+       and user_id = $2`,
     [gameId, userId, dailySpin],
   );
 
@@ -1861,8 +2009,8 @@ const toggleDailySpin = async ({
 const updateUserSettingsState = async (userId: number, state: number) => {
   await query(
     `UPDATE user_settings
-         SET product_setup_status = $2
-         WHERE user_id = $1`,
+     SET product_setup_status = $2
+     WHERE user_id = $1`,
     [userId, state],
   );
 
@@ -1870,10 +2018,10 @@ const updateUserSettingsState = async (userId: number, state: number) => {
 };
 
 const diaryMontly = async (userId: number) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT *
-                                FROM dairy
-                                WHERE user_id = $1`,
+     FROM dairy
+     WHERE user_id = $1`,
     [userId],
   );
 
@@ -1885,60 +2033,67 @@ const diaryMontly = async (userId: number) => {
 const getUserTracker = async (userId: number) => {
   let allData = {};
 
-  const { rows } = await query(`SELECT * FROM tracker WHERE user_id = $1`, [
+  const {rows} = await query(`SELECT *
+                              FROM tracker
+                              WHERE user_id = $1`, [
     userId,
   ]);
 
   allData = rows[0];
 
-  const { rows: userLock } = await query(
-    `SELECT * FROM user_lock_type
-        left join lock_type on lock_type.id = user_lock_type.lock_type_id
-        WHERE user_id = $1`,
+  const {rows: userLock} = await query(
+    `SELECT *
+     FROM user_lock_type
+              left join lock_type on lock_type.id = user_lock_type.lock_type_id
+     WHERE user_id = $1`,
     [userId],
   );
 
-  allData = { ...allData, userLock };
+  allData = {...allData, userLock};
 
-  const { rows: userDeviceType } = await query(
-    `SELECT * FROM user_device_type
-        left join device_type on device_type.id = user_device_type.device_type
-        WHERE user_id = $1`,
+  const {rows: userDeviceType} = await query(
+    `SELECT *
+     FROM user_device_type
+              left join device_type on device_type.id = user_device_type.device_type
+     WHERE user_id = $1`,
     [userId],
   );
 
-  const { rows: userInGameCheck } = await query(
-    `SELECT * FROM user_solo_games
-        WHERE user_id = $1
-        AND game_status = 'In Game'`,
+  const {rows: userInGameCheck} = await query(
+    `SELECT *
+     FROM user_solo_games
+     WHERE user_id = $1
+       AND game_status = 'In Game'`,
     [userId],
   );
 
   if (userInGameCheck.length > 0) {
-    allData = { ...allData, gameStatus: "In Game" };
+    allData = {...allData, gameStatus: "In Game"};
   } else {
-    allData = { ...allData, gameStatus: "Not In Game" };
+    allData = {...allData, gameStatus: "Not In Game"};
   }
 
-  allData = { ...allData, userDeviceType };
+  allData = {...allData, userDeviceType};
 
   return allData;
 };
 
 const getUserAchievements = async (userId: number) => {
-  const { rows } = await query(
+  const {rows} = await query(
     `select achievements.*,
-        user_achievement.date as unlocked_date,
-        user_solo_games.id as game_id,
-        user_solo_games.game_status as game_status,
-        user_achievement.id as user_achievement_id
-            FROM achievements
-            LEFT JOIN user_achievement
-                ON user_achievement.achievement_id = achievements.id and user_achievement.game_id in (select id from user_solo_games where user_id = $1)
-            LEFT JOIN user_solo_games
-                ON user_achievement.game_id = user_solo_games.id
-                AND user_solo_games.user_id = $1
-            WHERE user_solo_games.user_id = $1 OR user_solo_games.user_id IS NULL;`,
+            user_achievement.date       as unlocked_date,
+            user_solo_games.id          as game_id,
+            user_solo_games.game_status as game_status,
+            user_achievement.id         as user_achievement_id
+     FROM achievements
+              LEFT JOIN user_achievement
+                        ON user_achievement.achievement_id = achievements.id and
+                           user_achievement.game_id in (select id from user_solo_games where user_id = $1)
+              LEFT JOIN user_solo_games
+                        ON user_achievement.game_id = user_solo_games.id
+                            AND user_solo_games.user_id = $1
+     WHERE user_solo_games.user_id = $1
+        OR user_solo_games.user_id IS NULL;`,
     [userId],
   );
 
@@ -1973,11 +2128,13 @@ const checkAchievement = async (
   percentageCompleted?: number;
 }> => {
   // Check if the achievement is already unlocked
-  const { rows: existingAchievement } = await query(
-    `SELECT *, (SELECT COUNT(*) FROM user_achievement WHERE achievement_id = $1) * 100.0 / (SELECT COUNT(*) FROM users) AS percentage_completed
-         FROM user_achievement
-         WHERE achievement_id = $1
-           AND game_id IN (SELECT id FROM user_solo_games WHERE user_id = $2)`,
+  const {rows: existingAchievement} = await query(
+    `SELECT *,
+            (SELECT COUNT(*) FROM user_achievement WHERE achievement_id = $1) * 100.0 /
+            (SELECT COUNT(*) FROM users) AS percentage_completed
+     FROM user_achievement
+     WHERE achievement_id = $1
+       AND game_id IN (SELECT id FROM user_solo_games WHERE user_id = $2)`,
     [achievementId, userId],
   );
 
@@ -1989,26 +2146,26 @@ const checkAchievement = async (
     };
   }
 
-  const { rows: userAchievement } = await query(
+  const {rows: userAchievement} = await query(
     `SELECT *
-         FROM achievements
-         WHERE id = $1`,
+     FROM achievements
+     WHERE id = $1`,
     [achievementId],
   );
 
-  const { rows: currentGame } = await query(
+  const {rows: currentGame} = await query(
     `SELECT *
-         FROM user_solo_games
-         WHERE user_id = $1
-           AND game_status = 'In Game'`,
+     FROM user_solo_games
+     WHERE user_id = $1
+       AND game_status = 'In Game'`,
     [userId],
   );
 
-  const { criteria } = userAchievement[0];
+  const {criteria} = userAchievement[0];
   const userGame = currentGame[0];
 
   if (!userGame) {
-    return { status: -1 };
+    return {status: -1};
   }
 
   if (criteria.type === "time") {
@@ -2018,14 +2175,14 @@ const checkAchievement = async (
 
     // Check if the game duration meets the criteria
     if (gameDurationMinutes >= criteria.minutes) {
-      return { status: 1 }; // Eligible for achievement
+      return {status: 1}; // Eligible for achievement
     } else {
       const percentageCompleted =
         (gameDurationMinutes / criteria.minutes) * 100;
-      return { status: -1, percentageCompleted }; // Not eligible for achievement
+      return {status: -1, percentageCompleted}; // Not eligible for achievement
     }
   } else {
-    return { status: 0 }; // User determined
+    return {status: 0}; // User determined
   }
 };
 
@@ -2044,16 +2201,19 @@ const claimAchievement = async (
 
   if (achievementCheck.status === 1 || achievementCheck.status === 0) {
     // User is eligible for the achievement
-    const { rows: currentGame } = await query(
-      `SELECT id FROM user_solo_games WHERE user_id = $1 AND game_status = 'In Game'`,
+    const {rows: currentGame} = await query(
+      `SELECT id
+       FROM user_solo_games
+       WHERE user_id = $1
+         AND game_status = 'In Game'`,
       [userId],
     );
 
     const gameId = currentGame[0]?.id;
 
-    const { rowCount, rows } = await query(
+    const {rowCount, rows} = await query(
       `INSERT INTO user_achievement (achievement_id, date, game_id)
-              VALUES ($1, NOW(), $2)`,
+       VALUES ($1, NOW(), $2)`,
       [achievementId, gameId],
     );
 
@@ -2065,8 +2225,10 @@ const claimAchievement = async (
     }
 
     // Get achievement details
-    const { rows: achievementDetails } = await query(
-      `SELECT name, points FROM achievements WHERE id = $1`,
+    const {rows: achievementDetails} = await query(
+      `SELECT name, points
+       FROM achievements
+       WHERE id = $1`,
       [achievementId],
     );
     const achievementName = achievementDetails[0].name;
@@ -2075,7 +2237,7 @@ const claimAchievement = async (
     // Add diary entry
     await query(
       `INSERT INTO dairy (user_id, created_date, title, entry, type)
-        VALUES ($1, NOW(), $2, $3, 'c')`,
+       VALUES ($1, NOW(), $2, $3, 'c')`,
       [
         userId,
         "Achievement Unlocked",
@@ -2084,7 +2246,9 @@ const claimAchievement = async (
     );
 
     // Update user's XP
-    await query(`UPDATE users SET xp_points = xp_points + $1 WHERE id = $2`, [
+    await query(`UPDATE users
+                 SET xp_points = xp_points + $1
+                 WHERE id = $2`, [
       achievementPoints,
       userId,
     ]);
@@ -2092,13 +2256,13 @@ const claimAchievement = async (
     // Record XP change
     await query(
       `INSERT INTO xp_change (user_id, amount, reason, date)
-        VALUES ($1, $2, $3, NOW())`,
+       VALUES ($1, $2, $3, NOW())`,
       [userId, achievementPoints, `Unlocked achievement: ${achievementName}`],
     );
 
-    return { status: 1, message: "Achievement claimed successfully" };
+    return {status: 1, message: "Achievement claimed successfully"};
   } else if (achievementCheck.status === 2) {
-    return { status: 2, message: "Achievement already unlocked" };
+    return {status: 2, message: "Achievement already unlocked"};
   } else if (achievementCheck.status === -1) {
     return {
       status: -1,
@@ -2116,11 +2280,12 @@ const getGameVerificationAttempt = async (
   gameId: number,
 ): Promise<{ id: number; code: string }> => {
   // Check if there's an unused attempt
-  const { rows: unusedAttempt } = await query(
+  const {rows: unusedAttempt} = await query(
     `SELECT gva.id, gva.code
      FROM game_verification_attempt gva
-     LEFT JOIN game_verification_image gvi ON gva.id = gvi.attempt_id
-     WHERE gva.game_id = $1 AND gvi.id IS NULL
+              LEFT JOIN game_verification_image gvi ON gva.id = gvi.attempt_id
+     WHERE gva.game_id = $1
+       AND gvi.id IS NULL
      ORDER BY gva.date DESC
      LIMIT 1`,
     [gameId],
@@ -2132,7 +2297,7 @@ const getGameVerificationAttempt = async (
 
   // If no unused attempt, create a new one
   const code = Math.floor(100000 + Math.random() * 900000).toString(); // Generate 6-digit number
-  const { rows: newAttempt } = await query(
+  const {rows: newAttempt} = await query(
     `INSERT INTO game_verification_attempt (code, game_id, date)
      VALUES ($1, $2, NOW())
      RETURNING id, code`,
@@ -2148,7 +2313,7 @@ const uploadVerificationImage = async (
   imageUrl: string,
 ): Promise<{ status: number; message: string }> => {
   try {
-    const { rowCount } = await query(
+    const {rowCount} = await query(
       `INSERT INTO game_verification_image (game_id, attempt_id, image_url, date)
        VALUES ($1, $2, $3, NOW())
        RETURNING id`,
@@ -2156,11 +2321,11 @@ const uploadVerificationImage = async (
     );
 
     if (rowCount === 0) {
-      return { status: -1, message: "Failed to upload verification image" };
+      return {status: -1, message: "Failed to upload verification image"};
     }
 
     // Get userId from gameId
-    const { rows: userIdRows } = await query(
+    const {rows: userIdRows} = await query(
       `SELECT user_id
        FROM user_solo_games
        WHERE id = $1`,
@@ -2169,18 +2334,22 @@ const uploadVerificationImage = async (
     const userId = userIdRows[0]?.user_id;
 
     if (!userId) {
-      return { status: -1, message: "User not found for this game" };
+      return {status: -1, message: "User not found for this game"};
     }
 
     // Get XP points for image verification
-    const { rows: actionPointsRows } = await query(
-      `SELECT amount FROM action_points WHERE title = 'Image Verification'`,
+    const {rows: actionPointsRows} = await query(
+      `SELECT amount
+       FROM action_points
+       WHERE title = 'Image Verification'`,
       [],
     );
     const verificationPoints = actionPointsRows[0]?.amount || 0;
 
     // Award XP to the user
-    await query(`UPDATE users SET xp_points = xp_points + $1 WHERE id = $2`, [
+    await query(`UPDATE users
+                 SET xp_points = xp_points + $1
+                 WHERE id = $2`, [
       verificationPoints,
       userId,
     ]);
@@ -2210,7 +2379,7 @@ const uploadVerificationImage = async (
     };
   } catch (e) {
     console.error("Error uploading verification image", e);
-    return { status: -1, message: "Error uploading verification image" };
+    return {status: -1, message: "Error uploading verification image"};
   }
 };
 
@@ -2218,11 +2387,11 @@ const getCommunityImagesForVerification = async (
   userId: number,
   limit: number = 1,
 ): Promise<Array<{ id: number; imageUrl: string; code: string }>> => {
-  const { rows } = await query(
+  const {rows} = await query(
     `SELECT gvi.id, gvi.image_url, gva.code
      FROM game_verification_image gvi
-     JOIN user_solo_games usg ON gvi.game_id = usg.id
-     JOIN game_verification_attempt gva ON gvi.attempt_id = gva.id
+              JOIN user_solo_games usg ON gvi.game_id = usg.id
+              JOIN game_verification_attempt gva ON gvi.attempt_id = gva.id
      WHERE usg.user_id != $1
        AND gvi.verified IS NULL
      ORDER BY RANDOM()
@@ -2244,7 +2413,7 @@ const verifyCommunityImage = async (
   isVerified: boolean,
 ): Promise<{ status: number; message: string }> => {
   try {
-    const { rowCount } = await query(
+    const {rowCount} = await query(
       `UPDATE game_verification_image
        SET verified = $2
        WHERE id = $1`,
@@ -2252,13 +2421,13 @@ const verifyCommunityImage = async (
     );
 
     if (rowCount === 0) {
-      return { status: -1, message: "Failed to verify community image" };
+      return {status: -1, message: "Failed to verify community image"};
     }
 
-    return { status: 1, message: "Community image verified successfully" };
+    return {status: 1, message: "Community image verified successfully"};
   } catch (e) {
     console.error("Error verifying community image", e);
-    return { status: -1, message: "Error verifying community image" };
+    return {status: -1, message: "Error verifying community image"};
   }
 };
 
@@ -2268,9 +2437,10 @@ const updateUserTimeLimits = async (
   maxTime: number,
 ): Promise<boolean> => {
   const queryText = `UPDATE user_settings
-                       SET min_time = $2,
-                           max_time = $3
-                       WHERE user_id = $1 RETURNING *`;
+                     SET min_time = $2,
+                         max_time = $3
+                     WHERE user_id = $1
+                     RETURNING *`;
 
   await query(queryText, [id, minTime, maxTime]);
 
@@ -2286,7 +2456,7 @@ const recordOrgasm = async (
   notes: string,
 ): Promise<{ status: number; message: string }> => {
   try {
-    const { rowCount } = await query(
+    const {rowCount} = await query(
       `INSERT INTO user_orgasm (userid, type_id, location, by_whom, created_date, orgasm_date, notes)
        VALUES ($1, $2, $3, $4, NOW(), $5, $6)
        RETURNING id`,
@@ -2294,7 +2464,7 @@ const recordOrgasm = async (
     );
 
     if (rowCount === 0) {
-      return { status: -1, message: "Failed to record orgasm" };
+      return {status: -1, message: "Failed to record orgasm"};
     }
 
     // Update the tracker
@@ -2319,10 +2489,10 @@ const recordOrgasm = async (
       ],
     );
 
-    return { status: 1, message: "Orgasm recorded successfully" };
+    return {status: 1, message: "Orgasm recorded successfully"};
   } catch (e) {
     console.error("Error recording orgasm", e);
-    return { status: -1, message: "Error recording orgasm" };
+    return {status: -1, message: "Error recording orgasm"};
   }
 };
 
@@ -2330,12 +2500,12 @@ const getOrgasmTypes = async (
   search: string = "",
 ): Promise<Array<{ id: number; type: string }>> => {
   const queryText = `
-    SELECT id, type
-    FROM orgasm_type
-    WHERE LOWER(type) LIKE LOWER($1)
+      SELECT id, type
+      FROM orgasm_type
+      WHERE LOWER(type) LIKE LOWER($1)
   `;
 
-  const { rows } = await query(queryText, [`%${search}%`]);
+  const {rows} = await query(queryText, [`%${search}%`]);
 
   return rows.map((row) => ({
     id: row.id,
@@ -2344,73 +2514,96 @@ const getOrgasmTypes = async (
 };
 
 const getDetailedAnalytics = async (userId: number) => {
-  const { rows: userRows } = await query(`SELECT * FROM users WHERE id = $1`, [
+  const {rows: userRows} = await query(`SELECT *
+                                        FROM users
+                                        WHERE id = $1`, [
     userId,
   ]);
 
-  const { rows: trackerRows } = await query(
-    `SELECT * FROM tracker WHERE user_id = $1`,
+  const {rows: trackerRows} = await query(
+    `SELECT *
+     FROM tracker
+     WHERE user_id = $1`,
     [userId],
   );
 
-  const { rows: gamesRows } = await query(
-    `SELECT * FROM user_solo_games WHERE user_id = $1`,
+  const {rows: gamesRows} = await query(
+    `SELECT *
+     FROM user_solo_games
+     WHERE user_id = $1`,
     [userId],
   );
 
-  const { rows: orgasmRows } = await query(
+  const {rows: orgasmRows} = await query(
     `SELECT uo.*, ot.type as orgasm_type
      FROM user_orgasm uo
-     JOIN orgasm_type ot ON uo.type_id = ot.id
+              JOIN orgasm_type ot ON uo.type_id = ot.id
      WHERE uo.userid = $1`,
     [userId],
   );
 
-  const { rows: achievementRows } = await query(
-    `SELECT * FROM user_achievement
+  const {rows: achievementRows} = await query(
+    `SELECT *
+     FROM user_achievement
      WHERE game_id IN (SELECT id FROM user_solo_games WHERE user_id = $1)`,
     [userId],
   );
 
-  const { rows: lockedAchievementRows } = await query(
-    `SELECT COUNT(*) as locked_achievements_count FROM achievements
-     WHERE id NOT IN (SELECT achievement_id FROM user_achievement
+  const {rows: lockedAchievementRows} = await query(
+    `SELECT COUNT(*) as locked_achievements_count
+     FROM achievements
+     WHERE id NOT IN (SELECT achievement_id
+                      FROM user_achievement
                       WHERE game_id IN (SELECT id FROM user_solo_games WHERE user_id = $1))`,
     [userId],
   );
 
-  const { rows: userDeviceRows } = await query(
-    `SELECT * FROM user_device_type WHERE user_id = $1`,
+  const {rows: userDeviceRows} = await query(
+    `SELECT *
+     FROM user_device_type
+     WHERE user_id = $1`,
     [userId],
   );
 
-  const { rows: userLockRows } = await query(
-    `SELECT * FROM user_lock_type WHERE user_id = $1`,
+  const {rows: userLockRows} = await query(
+    `SELECT *
+     FROM user_lock_type
+     WHERE user_id = $1`,
     [userId],
   );
 
-  const { rows: userRewardRows } = await query(
-    `SELECT * FROM user_rewards WHERE user_id = $1`,
+  const {rows: userRewardRows} = await query(
+    `SELECT *
+     FROM user_rewards
+     WHERE user_id = $1`,
     [userId],
   );
 
-  const { rows: userPunishmentRows } = await query(
-    `SELECT * FROM user_punishments WHERE user_id = $1`,
+  const {rows: userPunishmentRows} = await query(
+    `SELECT *
+     FROM user_punishments
+     WHERE user_id = $1`,
     [userId],
   );
 
-  const { rows: userToyRows } = await query(
-    `SELECT * FROM user_toys WHERE user_id = $1`,
+  const {rows: userToyRows} = await query(
+    `SELECT *
+     FROM user_toys
+     WHERE user_id = $1`,
     [userId],
   );
 
-  const { rows: userProductRows } = await query(
-    `SELECT * FROM user_product WHERE user_id = $1`,
+  const {rows: userProductRows} = await query(
+    `SELECT *
+     FROM user_product
+     WHERE user_id = $1`,
     [userId],
   );
 
-  const { rows: userSettingsRows } = await query(
-    `SELECT * FROM user_settings WHERE user_id = $1`,
+  const {rows: userSettingsRows} = await query(
+    `SELECT *
+     FROM user_settings
+     WHERE user_id = $1`,
     [userId],
   );
 
@@ -2429,27 +2622,25 @@ const getDetailedAnalytics = async (userId: number) => {
 
   const heatMapData = await query(
     `
-    WITH RECURSIVE date_range AS (
-       SELECT $1::date AS date
-       UNION ALL
-       SELECT date + 1
-       FROM date_range
-       WHERE date < $2::date
-     ),
-     game_dates AS (
-       SELECT gs::date AS date
-       FROM user_solo_games,
-            generate_series((start_date + interval '1 day')::date, (end_date + interval '1 day')::date, '1 day'::interval) gs
-       WHERE user_id = $3
-         AND game_success = true
-         AND end_date >= $1
-         AND end_date < $2::date + 1
-     )
-     SELECT date_range.date as day, COUNT(game_dates.date) as count
-     FROM date_range
-     LEFT JOIN game_dates ON date_range.date = game_dates.date
-     GROUP BY day
-     ORDER BY day
+        WITH RECURSIVE
+            date_range AS (SELECT $1::date AS date
+                           UNION ALL
+                           SELECT date + 1
+                           FROM date_range
+                           WHERE date < $2::date),
+            game_dates AS (SELECT gs::date AS date
+                           FROM user_solo_games,
+                                generate_series((start_date + interval '1 day')::date,
+                                                (end_date + interval '1 day')::date, '1 day'::interval) gs
+                           WHERE user_id = $3
+                             AND game_success = true
+                             AND end_date >= $1
+                             AND end_date < $2::date + 1)
+        SELECT date_range.date as day, COUNT(game_dates.date) as count
+        FROM date_range
+                 LEFT JOIN game_dates ON date_range.date = game_dates.date
+        GROUP BY day
+        ORDER BY day
     `,
     [oneYearAgo, today, userId],
   );
@@ -2470,7 +2661,7 @@ const getDetailedAnalytics = async (userId: number) => {
   heatMapData.rows.forEach((row) => {
     const dayIndex = Math.floor(
       (new Date(row.day).getTime() - oneYearAgo.getTime()) /
-        (1000 * 60 * 60 * 24),
+      (1000 * 60 * 60 * 24),
     );
     if (dayIndex >= 0 && dayIndex < dayCount) {
       heatMap[dayIndex].value = row.count > 0 ? 1 : 0;
@@ -2481,7 +2672,8 @@ const getDetailedAnalytics = async (userId: number) => {
   const orgasmHeatMapData = await query(
     `SELECT date_trunc('day', orgasm_date + interval '1 day') as day, COUNT(*) as count
      FROM user_orgasm
-     WHERE userid = $1 AND orgasm_date >= $2
+     WHERE userid = $1
+       AND orgasm_date >= $2
      GROUP BY day
      ORDER BY day`,
     [userId, oneYearAgo],
@@ -2500,7 +2692,7 @@ const getDetailedAnalytics = async (userId: number) => {
   orgasmHeatMapData.rows.forEach((row) => {
     const dayIndex = Math.floor(
       (new Date(row.day).getTime() - oneYearAgo.getTime()) /
-        (1000 * 60 * 60 * 24),
+      (1000 * 60 * 60 * 24),
     );
     if (dayIndex >= 0 && dayIndex < dayCount) {
       orgasmHeatMap[dayIndex].value = row.count > 0 ? 1 : 0;
@@ -2574,15 +2766,20 @@ const getUserRank = async (
   nextLevelXP: number;
   rankImage: string;
 }> => {
-  const { rows: userRows } = await query(
-    `SELECT users.xp_points, users.level_id, users.rank_id,
-            ranks.name AS rank_name, ranks.image AS rank_image,
-            current_level.name AS current_level_name, current_level.requiredpoints AS current_level_points,
-            next_level.name AS next_level_name, next_level.requiredpoints AS next_level_points
+  const {rows: userRows} = await query(
+    `SELECT users.xp_points,
+            users.level_id,
+            users.rank_id,
+            ranks.name                   AS rank_name,
+            ranks.image                  AS rank_image,
+            current_level.name           AS current_level_name,
+            current_level.requiredpoints AS current_level_points,
+            next_level.name              AS next_level_name,
+            next_level.requiredpoints    AS next_level_points
      FROM users
-     JOIN ranks ON users.rank_id = ranks.id
-     JOIN levels AS current_level ON users.level_id = current_level.id
-     JOIN levels AS next_level ON current_level.order + 1 = next_level.order
+              JOIN ranks ON users.rank_id = ranks.id
+              JOIN levels AS current_level ON users.level_id = current_level.id
+              JOIN levels AS next_level ON current_level.order + 1 = next_level.order
      WHERE users.id = $1`,
     [userId],
   );
