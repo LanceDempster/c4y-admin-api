@@ -13,6 +13,7 @@ import {Ticket} from "../interfaces/Ticket";
 import assert from "node:assert";
 import BadRequest from "../errors/BadRequest";
 import UserGame from "../schemas/UserGame";
+import {deleteTicket} from "../controllers/TicketController";
 
 export const create = async (user: User, productCode: number, next: any) => {
   try {
@@ -1122,9 +1123,16 @@ const dailyLockXpCheck = async (game: UserGame, userId: number, xpPerDay: number
 
   if (daysSinceStart > 0 && daysSinceLastAward > 0) {
     const xpToAward = xpPerDay * daysSinceLastAward;
-    await awardXP(userId, xpToAward);
-    await recordXPChanges(userId, game.id, xpPerDay, daysSinceLastAward, lastXpAwardDate);
-    await addDiaryEntries(userId, game.id, xpPerDay, daysSinceLastAward, lastXpAwardDate);
+    await handleDeltaXp(userId, xpToAward, "Daily Locked Award", lastXpAwardDate, game.id);
+
+    for (let i = 0; i < daysSinceLastAward; i++) {
+      const date = new Date(lastXpAwardDate.getTime() + (i + 1) * 24 * 60 * 60 * 1000);
+
+      await query(`
+          INSERT INTO dairy (user_id, created_date, title, entry, type, game_id)
+          VALUES ($1, $2, $3, $4, 'c', $5)
+      `, [userId, date, "Daily Lock XP Awarded", `You earned ${xpPerDay} XP for being locked for another day.`, game.id]);
+    }
 
     game.xpAwarded = xpToAward;
     game.daysAwarded = daysSinceLastAward;
@@ -1133,43 +1141,18 @@ const dailyLockXpCheck = async (game: UserGame, userId: number, xpPerDay: number
   return game;
 };
 
-const awardXP = async (userId: number, xpToAward: number): Promise<void> => {
+const handleDeltaXp = async (userId: number, amount: number, reason: string, date: Date, gameId: number, actionPointId?: number): Promise<void> => {
+  await query(`
+      INSERT INTO xp_change (user_id, amount, reason, date, game_id, action_points_id)
+      VALUES ($1, $2, $3, $4, $5, $6)
+  `, [userId, amount, reason, date, gameId, actionPointId]);
+
+
   await query(`
       UPDATE users
       SET xp_points = xp_points + $1
       WHERE id = $2
-  `, [xpToAward, userId]);
-};
-
-const recordXPChanges = async (userId: number, gameId: number, xpPerDay: number, daysSinceStart: number, lastXpAwardDate: Date): Promise<void> => {
-  const actionPointId = await fetchActionPointId();
-
-  for (let i = 0; i < daysSinceStart; i++) {
-    const date = new Date(lastXpAwardDate.getTime() + (i + 1) * 24 * 60 * 60 * 1000);
-    await query(`
-        INSERT INTO xp_change (user_id, amount, reason, date, game_id, action_points_id)
-        VALUES ($1, $2, $3, $4, $5, $6)
-    `, [userId, xpPerDay, "Daily lock XP", date, gameId, actionPointId]);
-  }
-};
-
-const fetchActionPointId = async (): Promise<number> => {
-  const {rows} = await query(`
-      SELECT id
-      FROM action_points
-      WHERE title = 'Daily Lock XP'
-  `, []);
-  return rows[0]?.id;
-};
-
-const addDiaryEntries = async (userId: number, gameId: number, xpPerDay: number, daysSinceStart: number, lastXpAwardDate: Date): Promise<void> => {
-  for (let i = 0; i < daysSinceStart; i++) {
-    const date = new Date(lastXpAwardDate.getTime() + (i + 1) * 24 * 60 * 60 * 1000);
-    await query(`
-        INSERT INTO dairy (user_id, created_date, title, entry, type, game_id)
-        VALUES ($1, $2, $3, $4, 'c', $5)
-    `, [userId, date, "Daily Lock XP Awarded", `You earned ${xpPerDay} XP for being locked for another day.`, gameId]);
-  }
+  `, [amount, userId]);
 };
 
 const failedVerificationsCheck = async (game: UserGame, userId: number): Promise<UserGame> => {
@@ -1268,16 +1251,7 @@ const applyPunishment = async (game: UserGame, userId: number, windowEndDate: Da
       WHERE id = $1
   `, [game.id, game.punishment_time]);
 
-  await query(`
-      UPDATE users
-      SET xp_points = xp_points + $1
-      WHERE id = $2
-  `, [xpLoss, userId])
-
-  await query(`
-      INSERT INTO xp_change (user_id, amount, reason, date, game_id, action_points_id)
-      VALUES ($1, $2, $3, $4, $5, $6)
-  `, [userId, xpLoss, "Missed Verification", windowEndDate, game.id, actionPointId]);
+  await handleDeltaXp(userId, xpLoss, "Missed Image Verification", windowEndDate, game.id, actionPointId)
 };
 
 /* End fetch game function */
