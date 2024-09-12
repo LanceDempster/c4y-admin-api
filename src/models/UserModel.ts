@@ -1085,7 +1085,7 @@ const fetchUserGames = async (userId: number): Promise<UserGame> => {
               FROM xp_change
               WHERE user_id = user_solo_games.user_id
                 AND game_id = user_solo_games.id
-                AND reason = 'Daily lock XP'
+                AND reason = 'Daily Locked Award'
               ORDER BY date DESC
               LIMIT 1)             AS last_xp_award_date
       FROM user_solo_games
@@ -1122,11 +1122,11 @@ const dailyLockXpCheck = async (game: UserGame, userId: number, xpPerDay: number
   const daysSinceLastAward = Math.floor((currentDate.getTime() - lastXpAwardDate.getTime()) / (1000 * 60 * 60 * 24));
 
   if (daysSinceStart > 0 && daysSinceLastAward > 0) {
-    const xpToAward = xpPerDay * daysSinceLastAward;
-    await handleDeltaXp(userId, xpToAward, "Daily Locked Award", lastXpAwardDate, game.id);
 
     for (let i = 0; i < daysSinceLastAward; i++) {
       const date = new Date(lastXpAwardDate.getTime() + (i + 1) * 24 * 60 * 60 * 1000);
+
+      await handleDeltaXp(userId, xpPerDay, "Daily Locked Award", date, game.id);
 
       await query(`
           INSERT INTO dairy (user_id, created_date, title, entry, type, game_id)
@@ -1134,7 +1134,7 @@ const dailyLockXpCheck = async (game: UserGame, userId: number, xpPerDay: number
       `, [userId, date, "Daily Lock XP Awarded", `You earned ${xpPerDay} XP for being locked for another day.`, game.id]);
     }
 
-    game.xpAwarded = xpToAward;
+    game.xpAwarded = xpPerDay * daysSinceLastAward;
     game.daysAwarded = daysSinceLastAward;
   }
 
@@ -1147,11 +1147,16 @@ const handleDeltaXp = async (userId: number, amount: number, reason: string, dat
       VALUES ($1, $2, $3, $4, $5, $6)
   `, [userId, amount, reason, date, gameId, actionPointId]);
 
-
   await query(`
       UPDATE users
-      SET xp_points = GREATEST(0, xp_points + $1)
+      SET xp_points = GREATEST(0, xp_points + $1),
+          level_id  = (SELECT id
+                       FROM levels
+                       WHERE requiredpoints < users.xp_points + $1
+                       ORDER BY requiredpoints desc
+                       LIMIT 1)
       WHERE id = $2
+      returning level_id
   `, [amount, userId]);
 };
 
