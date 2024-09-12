@@ -13,7 +13,7 @@ import {Ticket} from "../interfaces/Ticket";
 import assert from "node:assert";
 import BadRequest from "../errors/BadRequest";
 import UserGame from "../schemas/UserGame";
-import {deleteTicket} from "../controllers/TicketController";
+import userRouter from "../api/UserRouter";
 
 export const create = async (user: User, productCode: number, next: any) => {
   try {
@@ -1055,9 +1055,70 @@ const getUserGames = async ({userId}: { userId: number }): Promise<UserGame[]> =
 
   game = await dailyLockXpCheck(game, userId, xpPerDay);
   game = await failedVerificationsCheck(game, userId);
+  game = await checkRankUp(game, userId);
 
   return [game];
 };
+
+const checkRankUp = async (game: UserGame, userId: number): Promise<UserGame> => {
+
+  /*
+    - get user rank
+    - get user next rank, level
+    - calculate user current consecutiveDays
+    - get all user unlocked achievements
+    - check each with requirement
+   */
+
+  // get user rank
+  const {rows: userData} = await query(
+    `SELECT rank_id, level_id, ranks."order" as rank_order, levels."order" as level_order
+     FROM users
+              left join ranks on users.rank_id = ranks.id
+              left join levels on users.level_id = levels.id
+     where users.id = $1`,
+    [userId],
+  );
+
+  // get get user next rank
+  const {rows: nextRank} = await query(
+    `SELECT *
+     FROM ranks
+     WHERE "order" = $1`
+    , [userData[0]["rank_order"] + 1]
+  )
+
+  // calculate consecutive days
+  let consecutiveDays = Math.floor(new Date().getTime() - new Date(game.start_date).getTime()) / 1000 / 60 / 60 / 24
+
+  let userAchievements = await getUserAchievements(userId)
+  userAchievements = userAchievements.filter((x) => x.unlockedDate != null).map((x) => x.id);
+
+  let levelOrder = userData[0]["level_order"]
+
+  let requiredLevel = nextRank[0]["requirements"]["level"]
+  let requiredAchievements = nextRank[0]["requirements"]["achievements"]
+  let requiredDays = nextRank[0]["requirements"]["consecutiveDays"]
+
+  let includesAll = (arr: any[], target: any[]) => target.every(v => arr.includes(v));
+
+  if (
+    consecutiveDays >= requiredDays
+    &&
+    includesAll(userAchievements, requiredAchievements)
+    &&
+    levelOrder >= requiredLevel
+  ) {
+    await query(
+      `UPDATE users
+       SET rank_id = $1
+       WHERE id = $2`,
+      [nextRank[0]["id"], userId]
+    )
+  }
+
+  return game
+}
 
 /* fetch game function */
 const fetchUserGames = async (userId: number): Promise<UserGame> => {
@@ -2067,7 +2128,7 @@ const getUserTracker = async (userId: number) => {
   return allData;
 };
 
-const getUserAchievements = async (userId: number) => {
+const getUserAchievements = async (userId: number): Promise<any[]> => {
   const {rows} = await query(
     `select achievements.*,
             user_achievement.date       as unlocked_date,
@@ -2090,9 +2151,7 @@ const getUserAchievements = async (userId: number) => {
     return [];
   }
 
-  const achievements = rows.map((row) => recursiveToCamel(row));
-
-  return achievements;
+  return rows.map((row) => recursiveToCamel(row));
 };
 
 /**
