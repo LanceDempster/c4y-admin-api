@@ -139,7 +139,18 @@ export const create = async (user: User, productCode: number, next: any) => {
 
 export const getById = async (id: number = 0) => {
   const {rows} = await query(
-    "SELECT users.*, user_settings.user_url, user_settings.avatar_url FROM users left join user_settings on users.id = user_settings.user_id WHERE users.id=$1",
+    `SELECT users.*,
+            user_settings.user_url,
+            user_settings.avatar_url,
+            l."order" as level_order,
+            l.name    as level_name,
+            r."order" as rank_order,
+            r.name    as rank_name
+     FROM users
+              left join user_settings on users.id = user_settings.user_id
+              left join levels l on users.level_id = l.id
+              left join ranks r on users.rank_id = r.id
+     WHERE users.id = $1`,
     [id],
   );
 
@@ -1061,7 +1072,6 @@ const getUserGames = async ({userId}: { userId: number }): Promise<UserGame[]> =
 };
 
 const checkRankUp = async (game: UserGame, userId: number): Promise<UserGame> => {
-
   /*
     - get user rank
     - get user next rank, level
@@ -1210,13 +1220,20 @@ const dailyLockXpCheck = async (game: UserGame, userId: number, xpPerDay: number
   return game;
 };
 
-const handleDeltaXp = async (userId: number, amount: number, reason: string, date: Date, gameId: number, actionPointId?: number): Promise<void> => {
+const handleDeltaXp = async (userId: number, amount: number, reason: string, date: Date, gameId: number, actionPointId?: number): Promise<number> => {
+  const {rows: userData} = await query(`
+      SELECT users.*, l."order" as levelOrder
+      FROM users
+               left join public.levels l on users.level_id = l.id
+      WHERE users.id = $1
+  `, [userId])
+
   await query(`
       INSERT INTO xp_change (user_id, amount, reason, date, game_id, action_points_id)
       VALUES ($1, $2, $3, $4, $5, $6)
   `, [userId, amount, reason, date, gameId, actionPointId]);
 
-  await query(`
+  const {rows: userLevel} = await query(`
       UPDATE users
       SET xp_points = GREATEST(0, xp_points + $1),
           level_id  = (SELECT id
@@ -1227,6 +1244,8 @@ const handleDeltaXp = async (userId: number, amount: number, reason: string, dat
       WHERE id = $2
       returning level_id
   `, [amount, userId]);
+
+  return userLevel[0]["levelOrder"] - userData[0]["levelOrder"]
 };
 
 const failedVerificationsCheck = async (game: UserGame, userId: number): Promise<UserGame> => {
@@ -1745,32 +1764,19 @@ const submitWheel = async ({
 
   // Get the points for the wheel spin activity
   const {rows: activityPoints} = await query(
-    `SELECT amount
+    `SELECT amount, id
      FROM action_points
      WHERE title = 'Wheel Spin'`,
     [],
   );
+
   const wheelSpinPoints = activityPoints[0]?.amount || 0;
+  const wheelSpinId = activityPoints[0]?.id || 0;
 
   const addDiaryEntry = async (title: string, entry: string) => {
     await query(
       "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
       [userId, new Date(), title, entry, "c", rows[0].id, gameId],
-    );
-  };
-
-  const awardPoints = async () => {
-    await query(`UPDATE users
-                 SET xp_points = xp_points + $1
-                 WHERE id = $2`, [
-      wheelSpinPoints,
-      userId,
-    ]);
-
-    await query(
-      `INSERT INTO xp_change (user_id, amount, reason, date, game_id)
-       VALUES ($1, $2, $3, NOW(), $4)`,
-      [userId, wheelSpinPoints, "Accepted wheel spin", gameId],
     );
   };
 
@@ -1788,7 +1794,7 @@ const submitWheel = async ({
         [gameId, itemName],
       );
 
-      await awardPoints();
+      await handleDeltaXp(userId, wheelSpinPoints, "Wheel Spin", new Date(), parseInt(gameId), wheelSpinId);
 
       await addDiaryEntry(
         "Accepted wheel spin",
@@ -1797,7 +1803,7 @@ const submitWheel = async ({
         )}. You earned ${wheelSpinPoints} XP!`,
       );
     } else if (type === 2) {
-      await awardPoints();
+      await handleDeltaXp(userId, wheelSpinPoints, "Wheel Spin", new Date(), parseInt(gameId), wheelSpinId);
 
       await addDiaryEntry(
         "Accept wheel spin",
