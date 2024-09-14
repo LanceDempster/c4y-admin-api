@@ -17,6 +17,7 @@ export default interface UserGame {
   latest_verification_image: string | null;
   latest_verification_time: string | null;
   last_xp_award_date: string | null;
+  last_verification_event_date: string | null;
   xpAwarded?: number;
   daysAwarded?: number;
   new_punishments?: number;

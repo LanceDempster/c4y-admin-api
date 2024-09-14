@@ -1148,7 +1148,15 @@ const fetchUserGames = async (userId: number): Promise<UserGame> => {
                 AND game_id = user_solo_games.id
                 AND reason = 'Daily Locked Award'
               ORDER BY date DESC
-              LIMIT 1)             AS last_xp_award_date
+              LIMIT 1)             AS last_xp_award_date,
+             (SELECT date
+              FROM xp_change
+              WHERE user_id = user_solo_games.user_id
+                AND game_id = user_solo_games.id
+                AND (reason = 'Missed Image Verification'
+                  OR reason = 'Image Verification')
+              ORDER BY date DESC
+              LIMIT 1)             AS last_verification_event_date
       FROM user_solo_games
                LEFT JOIN cheater_punishment
                          ON user_solo_games.id = cheater_punishment.game_id AND cheater_punishment.state = 1
@@ -1225,8 +1233,10 @@ const failedVerificationsCheck = async (game: UserGame, userId: number): Promise
   if (game.regularity && game.punishment_time) {
     const startDate = new Date(game.start_date);
     const currentDate = new Date();
-    const daysSinceStart = Math.floor((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    const windows = Math.floor(daysSinceStart / game.regularity);
+    const lastEventDate = new Date(game.last_verification_event_date ?? game.start_date);
+
+    const daysSinceStartOrLastPunishmentOrReward = Math.floor((currentDate.getTime() - lastEventDate.getTime()) / (1000 * 60 * 60 * 24));
+    const windows = Math.floor(daysSinceStartOrLastPunishmentOrReward / game.regularity);
 
     let newPunishments = 0;
     let punishedWindows = [];
@@ -1832,13 +1842,29 @@ const userCheated = async ({
     throw new Error("Not enough punishments found for the user.");
   }
 
+  const {rows: cheatingGame} = await query(
+    `SELECT amount, id
+     FROM action_points
+     WHERE title = 'Cheating Game'`,
+    [],
+  )
+
+  const {rows: game} = await query(
+    `SELECT *
+     FROM user_solo_games
+     WHERE id = $1`,
+    [userId],
+  );
+
+  await handleDeltaXp(userId, cheatingGame[0]["amount"], "User cheated Game", new Date(), parseInt(gameId), cheatingGame[0]["id"])
+
   await query(
     "INSERT INTO dairy (user_id, created_date, title, entry, type, product, game_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
     [
       userId,
       new Date(),
-      "Cheated in countdown.",
-      "You cheated in your self-managed Countdown game.",
+      "Cheated in game.",
+      `You cheated ${game[0]["game_type"]} game and lost ${cheatingGame[0]["amount"]}.`,
       "c",
       rows[0].id,
       gameId,
