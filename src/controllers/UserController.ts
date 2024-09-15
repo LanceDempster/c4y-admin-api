@@ -1,35 +1,35 @@
-import { RequestHandler } from "express";
-import { LoginType } from "../schemas/Login";
-import { UserResister } from "../schemas/UserResister";
+import {RequestHandler} from "express";
+import {LoginType} from "../schemas/Login";
+import {UserResister} from "../schemas/UserResister";
 import UserModel from "../models/UserModel";
-import { compare, hash } from "bcrypt";
-import { User } from "../interfaces/User";
-import { sign, verify } from "jsonwebtoken";
+import {compare, hash} from "bcrypt";
+import {User} from "../interfaces/User";
+import {sign, verify} from "jsonwebtoken";
 import NotFound from "../errors/NotFound";
 import NotAuthorized from "../errors/NotAuthorized";
-import { ForgotPassword } from "../schemas/ForgotPassword";
+import {ForgotPassword} from "../schemas/ForgotPassword";
 import BadRequest from "../errors/BadRequest";
-import { Result } from "../dto/Result";
-import { ResetPassword } from "../schemas/ResetPassword";
-import { UserSearch } from "../schemas/UserSearch";
-import { AccountStatus } from "../enum/AccountStatus";
-import { sendMail } from "../utils/email";
-import { Token } from "../types/Token";
-import { ChangePassword } from "../schemas/changePasswordSchema";
-import { UserProductFull } from "../interfaces/UserProductFull";
+import {Result} from "../dto/Result";
+import {ResetPassword} from "../schemas/ResetPassword";
+import {UserSearch} from "../schemas/UserSearch";
+import {AccountStatus} from "../enum/AccountStatus";
+import {sendMail} from "../utils/email";
+import {Token} from "../types/Token";
+import {ChangePassword} from "../schemas/changePasswordSchema";
+import {UserProductFull} from "../interfaces/UserProductFull";
 import UserProductModel from "../models/UserProductModel";
-import { DeviceType } from "../interfaces/DeviceType";
-import { LockType } from "../interfaces/LockType";
-import { Punishment } from "../interfaces/Punishment";
-import { Reward } from "../interfaces/Reward";
-import { Toy } from "../interfaces/Toy";
-import { query } from "../db";
-import { DiaryType } from "../interfaces/DiaryType";
-import { Ticket } from "../interfaces/Ticket";
+import {DeviceType} from "../interfaces/DeviceType";
+import {LockType} from "../interfaces/LockType";
+import {Punishment} from "../interfaces/Punishment";
+import {Reward} from "../interfaces/Reward";
+import {Toy} from "../interfaces/Toy";
+import {query} from "../db";
+import {DiaryType} from "../interfaces/DiaryType";
+import {Ticket} from "../interfaces/Ticket";
 
 export const login: RequestHandler = async (req, res, next) => {
   try {
-    const { email, password }: LoginType = req.body;
+    const {email, password}: LoginType = req.body;
 
     if (!email || !password) {
       return res
@@ -194,12 +194,12 @@ export const addDiaryItem: RequestHandler = async (req, res, next) => {
   try {
     const userId = req.body.user.id;
 
-    const { rows } = await query(
+    const {rows} = await query(
       `SELECT user_product.product_code
-             FROM user_product
-             WHERE user_product.user_id = ($1)
-             limit 1
-            `,
+       FROM user_product
+       WHERE user_product.user_id = ($1)
+       limit 1
+      `,
       [userId],
     );
 
@@ -261,7 +261,7 @@ export const deleteDiaryItem: RequestHandler<{ id: string }> = async (
   next,
 ) => {
   try {
-    const { id } = req.params;
+    const {id} = req.params;
 
     await UserModel.deleteDiary(~~+id);
 
@@ -275,7 +275,7 @@ export const deleteDiaryItem: RequestHandler<{ id: string }> = async (
 
 export const forgotPassword: RequestHandler = async (req, res, next) => {
   try {
-    const { email }: ForgotPassword = req.body;
+    const {email}: ForgotPassword = req.body;
 
     const user = await UserModel.getByEmail(email);
 
@@ -283,7 +283,7 @@ export const forgotPassword: RequestHandler = async (req, res, next) => {
 
     const resetPasswordToken = Math.random().toString(36).substring(2, 20);
 
-    const newUser = await UserModel.updateById(user.id, { resetPasswordToken });
+    const newUser = await UserModel.updateById(user.id, {resetPasswordToken});
 
     //Send Email with token
     await sendMail(
@@ -303,9 +303,9 @@ export const forgotPassword: RequestHandler = async (req, res, next) => {
 
 export const resetPassword: RequestHandler = async (req, res, next) => {
   try {
-    const { resetPasswordToken, newPassword }: ResetPassword = req.body;
+    const {resetPasswordToken, newPassword}: ResetPassword = req.body;
 
-    const user = await UserModel.getOne({ resetPasswordToken });
+    const user = await UserModel.getOne({resetPasswordToken});
 
     if (!user) return next(new NotFound("User not found or invalid token"));
 
@@ -346,7 +346,7 @@ export const getAll: RequestHandler = async (req, res, next) => {
     }: UserSearch = query;
 
     let [users, count] = await UserModel.search(
-      { firstName, lastName, email },
+      {firstName, lastName, email},
       page,
       orderBy ?? "id",
       orderDirection ?? "asc",
@@ -379,7 +379,7 @@ export const deleteUser: RequestHandler<{ id: string }> = async (
   next,
 ) => {
   try {
-    const { id } = req.params;
+    const {id} = req.params;
 
     const user = await UserModel.getById(~~+id);
 
@@ -395,7 +395,7 @@ export const deleteUser: RequestHandler<{ id: string }> = async (
 
 export const get: RequestHandler<{ id: string }> = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const {id} = req.params;
 
     const user = await UserModel.getById(~~+id);
 
@@ -413,7 +413,7 @@ export const update: RequestHandler<{ id: string }> = async (
   next,
 ) => {
   try {
-    const { id } = req.params;
+    const {id} = req.params;
 
     const user = await UserModel.getById(~~+id);
 
@@ -437,9 +437,9 @@ export const getUserProducts: RequestHandler<{ id: string }> = async (
   try {
     let query = {};
     Object.assign(query, req.query);
-    const { page, orderBy, orderDirection }: any = query;
+    const {page, orderBy, orderDirection}: any = query;
 
-    const { id } = req.params;
+    const {id} = req.params;
 
     let [userProducts, count] = await UserModel.getUserProducts(
       parseInt(id),
@@ -737,7 +737,7 @@ export const userUpdatePreferences: RequestHandler = async (req, res, next) => {
   try {
     const id = req.body.user.id;
 
-    const userSettings1Data = { ...req.body, id: id } as {
+    const userSettings1Data = {...req.body, id: id} as {
       community: boolean;
       gameMessages: boolean;
       marketingMessages: boolean;
@@ -778,7 +778,7 @@ export const deleteUserProduct: RequestHandler<{
   productid: string;
 }> = async (req, res, next) => {
   try {
-    const { userid, productid } = req.params;
+    const {userid, productid} = req.params;
 
     const userProduct = await UserProductModel.getById(~~+userid, ~~+productid);
 
@@ -800,7 +800,7 @@ export const activate: RequestHandler<{ id: string }> = async (
   next,
 ) => {
   try {
-    const { id } = req.params;
+    const {id} = req.params;
 
     const user = await UserModel.getById(~~+id);
 
@@ -824,7 +824,7 @@ export const disable: RequestHandler<{ id: string }> = async (
   next,
 ) => {
   try {
-    const { id } = req.params;
+    const {id} = req.params;
 
     const user = await UserModel.getById(~~+id);
 
@@ -876,7 +876,7 @@ export const updateProfilePicture: RequestHandler = async (req, res, next) => {
     const fileLocation = req?.file?.location;
 
     // @ts-ignore
-    const result = await UserModel.updateProfilePicture({ id, fileLocation });
+    const result = await UserModel.updateProfilePicture({id, fileLocation});
 
     return res
       .status(200)
@@ -908,7 +908,7 @@ export const updateAvatarPicture: RequestHandler = async (req, res, next) => {
     const fileLocation = req?.file?.location;
 
     // @ts-ignore
-    const result = await UserModel.updateAvatarPicture({ id, fileLocation });
+    const result = await UserModel.updateAvatarPicture({id, fileLocation});
 
     return res
       .status(200)
@@ -922,7 +922,7 @@ export const updateProfile: RequestHandler = async (req, res, next) => {
   try {
     const id = req.body.user.id;
 
-    const { firstName, lastName, gender, dateOfBirth, timezone, country } =
+    const {firstName, lastName, gender, dateOfBirth, timezone, country} =
       req.body;
 
     UserModel.updateUserProfile({
@@ -956,7 +956,7 @@ export const userSettings1: RequestHandler = async (req, res, next) => {
   try {
     const id = req.body.user.id;
 
-    const userSettings1Data = { ...req.body, id: id } as {
+    const userSettings1Data = {...req.body, id: id} as {
       community: boolean;
       gameMessages: boolean;
       marketingMessages: boolean;
@@ -977,7 +977,7 @@ export const userSettings2: RequestHandler = async (req, res, next) => {
   try {
     const id = req.body.user.id;
 
-    const result = await UserModel.updateSettings2({ id });
+    const result = await UserModel.updateSettings2({id});
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
@@ -991,7 +991,7 @@ export const userSettings3: RequestHandler = async (req, res, next) => {
 
     const deviceIds = req.body.deviceIds;
 
-    const result = await UserModel.updateSettings3({ id, deviceIds });
+    const result = await UserModel.updateSettings3({id, deviceIds});
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
@@ -1005,7 +1005,7 @@ export const userSettings4: RequestHandler = async (req, res, next) => {
 
     const lockIds = req.body.lockIds;
 
-    const result = await UserModel.updateSettings4({ id, lockIds });
+    const result = await UserModel.updateSettings4({id, lockIds});
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
@@ -1019,7 +1019,7 @@ export const userSettings5: RequestHandler = async (req, res, next) => {
 
     const rewardsIds = req.body.rewardIds;
 
-    const result = await UserModel.updateSettings5({ id, rewardsIds });
+    const result = await UserModel.updateSettings5({id, rewardsIds});
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
@@ -1033,7 +1033,7 @@ export const userSettings6: RequestHandler = async (req, res, next) => {
 
     const punishmentsIds = req.body.punishmentIds;
 
-    const result = await UserModel.updateSettings6({ id, punishmentsIds });
+    const result = await UserModel.updateSettings6({id, punishmentsIds});
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
@@ -1047,7 +1047,7 @@ export const userSettings7: RequestHandler = async (req, res, next) => {
 
     const toysIds = req.body.toysIds;
 
-    const result = await UserModel.updateSettings7({ id, toysIds });
+    const result = await UserModel.updateSettings7({id, toysIds});
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
@@ -1062,7 +1062,7 @@ export const userSettings8: RequestHandler = async (req, res, next) => {
     const maximum = req.body.maximum;
     const minimum = req.body.minimum;
 
-    const result = await UserModel.updateSettings8({ id, maximum, minimum });
+    const result = await UserModel.updateSettings8({id, maximum, minimum});
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
@@ -1076,7 +1076,7 @@ export const userSettings9: RequestHandler = async (req, res, next) => {
 
     const keyStorage = req.body.keyStorageId;
 
-    const result = await UserModel.updateSettings9({ id, keyStorage });
+    const result = await UserModel.updateSettings9({id, keyStorage});
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
@@ -1106,7 +1106,7 @@ export const userSettings10: RequestHandler = async (req, res, next) => {
     const fileLocation = req?.file?.location;
 
     // @ts-ignore
-    const result = await UserModel.updateSettings10({ id, fileLocation });
+    const result = await UserModel.updateSettings10({id, fileLocation});
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
@@ -1136,7 +1136,7 @@ export const userSettings11: RequestHandler = async (req, res, next) => {
     const fileLocation = req?.file?.location;
 
     // @ts-ignore
-    const result = await UserModel.updateSettings11({ id, fileLocation });
+    const result = await UserModel.updateSettings11({id, fileLocation});
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
@@ -1195,7 +1195,7 @@ export const userChangeEmail: RequestHandler = async (req, res, next) => {
     const newEmail = req.body.newEmail;
     const id = user.id;
 
-    const result = await UserModel.userChangeEmail({ id, newEmail });
+    const result = await UserModel.userChangeEmail({id, newEmail});
 
     return res.status(200).send(new Result(true, "updated settings to user"));
   } catch (e) {
@@ -1222,7 +1222,7 @@ export const addUserTicket: RequestHandler = async (req, res, next) => {
     const id = user.id;
     const email = user.email;
 
-    let { title, description, categoryId } = req.body;
+    let {title, description, categoryId} = req.body;
 
     // @ts-ignore
     const result = await UserModel.addTicket(
@@ -1249,10 +1249,10 @@ export const toggleTicketStatus: RequestHandler = async (req, res, next) => {
 
     const userId = req.body.user.id;
 
-    const { ticketId } = req.body;
+    const {ticketId} = req.body;
 
     // @ts-ignore
-    const result = await UserModel.toggleStatus({ userId, ticketId });
+    const result = await UserModel.toggleStatus({userId, ticketId});
 
     return res.status(200).send(new Result(true, "Updated ticket to user"));
   } catch (e) {
@@ -1270,7 +1270,7 @@ export const getUserGame: RequestHandler = async (req, res, next) => {
 
     const userId = req.body.user.id;
 
-    const result = await UserModel.getUserGames({ userId });
+    const result = await UserModel.getUserGames({userId});
 
     return res.status(200).send(new Result(true, "Added running game", result));
   } catch (e) {
@@ -1341,7 +1341,7 @@ export const cancelUserGame: RequestHandler = async (req, res, next) => {
     const id = user.id;
     const gameId = req.body.gameId;
 
-    const result = await UserModel.cancelUserGame({ userId: id, gameId });
+    const result = await UserModel.cancelUserGame({userId: id, gameId});
 
     return res.status(200).send(new Result(true, "Game canceled"));
   } catch (e) {
@@ -1399,9 +1399,9 @@ export const getWheelInstance: RequestHandler = async (req, res, next) => {
       return next(new NotAuthorized("Invalid token"));
     }
 
-    const { gameId } = req.params;
+    const {gameId} = req.params;
 
-    const result = await UserModel.getWheelInstance({ gameId });
+    const result = await UserModel.getWheelInstance({gameId});
 
     return res.status(200).send(new Result(true, "Wheel instance", result));
   } catch (e) {
@@ -1424,7 +1424,7 @@ export const submitWheel: RequestHandler = async (req, res, next) => {
     return next(new NotAuthorized("Invalid token"));
   }
 
-  const { gameId, type, itemName, accepted } = req.body;
+  const {gameId, type, itemName, accepted} = req.body;
 
   const result = await UserModel.submitWheel({
     gameId,
@@ -1452,7 +1452,7 @@ export const userCheated: RequestHandler = async (req, res, next) => {
     return next(new NotAuthorized("Invalid token"));
   }
 
-  const { gameId } = req.body;
+  const {gameId} = req.body;
 
   const result = await UserModel.userCheated({
     userId: user.id,
@@ -1477,7 +1477,7 @@ export const submitCheatingWheel: RequestHandler = async (req, res, next) => {
     return next(new NotAuthorized("Invalid token"));
   }
 
-  const { cheaterWheelId, gameId, itemName, accepted } = req.body;
+  const {cheaterWheelId, gameId, itemName, accepted} = req.body;
 
   const result = await UserModel.submitCheatingWheel({
     gameId,
@@ -1505,7 +1505,7 @@ export const submitGame: RequestHandler = async (req, res, next) => {
     return next(new NotAuthorized("Invalid token"));
   }
 
-  const { gameId, acceptedExtraTime } = req.body;
+  const {gameId, acceptedExtraTime} = req.body;
 
   const result = await UserModel.submitGame({
     gameId,
@@ -1517,7 +1517,7 @@ export const submitGame: RequestHandler = async (req, res, next) => {
 };
 
 export const toggleDailySpin: RequestHandler = async (req, res, next) => {
-  const { gameId, dailySpin } = req.body;
+  const {gameId, dailySpin} = req.body;
 
   const result = await UserModel.toggleDailySpin({
     dailySpin: dailySpin === "1",
@@ -1529,7 +1529,7 @@ export const toggleDailySpin: RequestHandler = async (req, res, next) => {
 };
 
 export const updateSettingsState: RequestHandler = async (req, res, next) => {
-  const { state } = req.params;
+  const {state} = req.params;
 
   const result = await UserModel.updateUserSettingsState(
     req.body.user.id,
@@ -1540,7 +1540,7 @@ export const updateSettingsState: RequestHandler = async (req, res, next) => {
 };
 
 export const getDiaryMonthly: RequestHandler = async (req, res, next) => {
-  const { month } = req.params;
+  const {month} = req.params;
 
   let userId = req.body.user.id;
 
@@ -1570,7 +1570,7 @@ export const getUserAchievements: RequestHandler = async (req, res, next) => {
 export const checkAchievement: RequestHandler = async (req, res, next) => {
   let userId = req.body.user.id;
 
-  let { achievementId } = req.query;
+  let {achievementId} = req.query;
 
   if (!achievementId) {
     return next(new BadRequest("Achievement ID is required"));
@@ -1586,7 +1586,7 @@ export const checkAchievement: RequestHandler = async (req, res, next) => {
 export const claimAchievement: RequestHandler = async (req, res, next) => {
   try {
     const userId = req.body.user.id;
-    const { achievementId } = req.body;
+    const {achievementId} = req.body;
 
     if (!achievementId) {
       return next(new BadRequest("Achievement ID is required"));
@@ -1738,7 +1738,7 @@ export const verifyCommunityImage: RequestHandler = async (req, res, next) => {
       return next(new NotAuthorized("Invalid token"));
     }
 
-    const { imageId, isValied } = req.body;
+    const {imageId, isValied} = req.body;
 
     if (typeof imageId !== "number" || typeof isValied !== "boolean") {
       return next(new BadRequest("Invalid imageId or isVerified value"));
@@ -1770,7 +1770,7 @@ export const updateUserTimeLimits: RequestHandler = async (req, res, next) => {
       return next(new NotAuthorized("Invalid token"));
     }
 
-    const { minTime, maxTime } = req.body;
+    const {minTime, maxTime} = req.body;
 
     if (typeof minTime !== "number" || typeof maxTime !== "number") {
       return next(new BadRequest("Invalid minTime or maxTime value"));
@@ -1810,7 +1810,7 @@ export const recordOrgasm: RequestHandler = async (req, res, next) => {
       return next(new NotAuthorized("Invalid token"));
     }
 
-    const { typeId, location, byWhom, orgasmDate, notes } = req.body;
+    const {typeId, location, byWhom, orgasmDate, notes} = req.body;
 
     if (!typeId || !orgasmDate) {
       return next(new BadRequest("Type and date are required"));
@@ -1855,7 +1855,7 @@ export const getOrgasmTypes: RequestHandler = async (req, res, next) => {
       return next(new NotAuthorized("Invalid token"));
     }
 
-    const { search } = req.query;
+    const {search} = req.query;
 
     const result = await UserModel.getOrgasmTypes(search as string | undefined);
 
@@ -1916,5 +1916,65 @@ export const getUserRank: RequestHandler = async (req, res, next) => {
       .send(new Result(true, "User rank retrieved", result));
   } catch (e) {
     next(e);
+  }
+};
+
+export const pauseGame: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const result = await UserModel.pauseGame(
+      req.body.gameId,
+      req.body.pauseId,
+      user.id
+    );
+
+    return res
+      .status(200)
+      .send(new Result(true, "User paused gamed.", result));
+  } catch (e) {
+    next(e)
+  }
+};
+
+export const resumeGame: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const result = await UserModel.resumeGame(
+      req.body.gameId,
+      req.body.pauseId,
+      user.id
+    );
+
+    return res
+      .status(200)
+      .send(new Result(true, "User paused gamed.", result));
+  } catch (e) {
+    next(e)
   }
 };

@@ -14,6 +14,7 @@ import assert from "node:assert";
 import BadRequest from "../errors/BadRequest";
 import UserGame from "../schemas/UserGame";
 import userRouter from "../api/UserRouter";
+import {userInfo} from "node:os";
 
 export const create = async (user: User, productCode: number, next: any) => {
   try {
@@ -1166,7 +1167,9 @@ const fetchUserGames = async (userId: number): Promise<UserGame> => {
                 AND (reason = 'Missed Image Verification'
                   OR reason = 'Image Verification')
               ORDER BY date DESC
-              LIMIT 1)             AS last_verification_event_date
+              LIMIT 1)             AS last_verification_event_date,
+             upt.start_date        AS pause_start_date,
+             upt.end_date          AS pause_end_date
       FROM user_solo_games
                LEFT JOIN cheater_punishment
                          ON user_solo_games.id = cheater_punishment.game_id AND cheater_punishment.state = 1
@@ -1176,11 +1179,27 @@ const fetchUserGames = async (userId: number): Promise<UserGame> => {
                LEFT JOIN punishments p4 ON punishment4id = p4.id
                LEFT JOIN punishments p5 ON punishment5id = p5.id
                LEFT JOIN game_verification_settings gvs ON user_solo_games.id = gvs.game_id
+               LEFT JOIN user_pause_table upt ON user_solo_games.id = upt.game_id
       WHERE user_solo_games.user_id = $1
-        AND user_solo_games.game_status = 'In Game'
+        AND (user_solo_games.game_status = 'In Game' OR user_solo_games.game_status = 'paused')
   `, [userId]);
 
-  return rows[0];
+  // Adjust the end date for paused games
+  const game = rows[0];
+  if (game && game.game_status === 'paused' && game.pause_start_date) {
+    const now = new Date();
+    const pauseStart = new Date(game.pause_start_date);
+    const pauseDuration = now.getTime() - pauseStart.getTime();
+
+    // Add the pause duration to both end_date and original_end_date
+    game.end_date = new Date(new Date(game.end_date).getTime() + pauseDuration);
+
+    // Remove the pause-related fields to keep the return type consistent
+    delete game.pause_start_date;
+    delete game.pause_end_date;
+  }
+
+  return game;
 };
 
 const fetchDailyLockXP = async (): Promise<number> => {
@@ -2145,7 +2164,7 @@ const getUserTracker = async (userId: number) => {
     `SELECT *
      FROM user_solo_games
      WHERE user_id = $1
-       AND game_status = 'In Game'`,
+       AND (game_status = 'In Game' or game_status = 'paused')`,
     [userId],
   );
 
@@ -2237,7 +2256,7 @@ const checkAchievement = async (
     `SELECT *
      FROM user_solo_games
      WHERE user_id = $1
-       AND game_status = 'In Game'`,
+       AND (game_status = 'In Game' or game_status = 'paused')`,
     [userId],
   );
 
@@ -2285,7 +2304,7 @@ const claimAchievement = async (
       `SELECT id
        FROM user_solo_games
        WHERE user_id = $1
-         AND game_status = 'In Game'`,
+         AND (game_status = 'In Game' or game_status = 'paused')`,
       [userId],
     );
 
@@ -2879,6 +2898,70 @@ const getUserRank = async (
   };
 };
 
+const pauseGame = async (gameId: number, pauseId: number, userId: number) => {
+  const {rows} = await query(`
+      SELECT *
+      FROM pause_game
+      WHERE id = $1
+  `, [pauseId])
+
+
+  await query(`
+      INSERT INTO user_pause_table
+          (game_id, pause_id, start_date)
+      VALUES ($1, $2, now())
+  `, [gameId, pauseId])
+
+  await query(
+    `UPDATE user_solo_games
+     SET game_status = 'paused'
+     WHERE id = $1
+    `, [gameId])
+
+  await query(
+    `INSERT INTO dairy (user_id, created_date, title, entry, type)
+     VALUES ($1, NOW(), $2, $3, 'c')`,
+    [
+      userId,
+      `Paused Game`,
+      `Paused game for ${rows[0]["name"]}`,
+    ],
+  );
+
+}
+
+const resumeGame = async (gameId: number, pauseId: number, userId: number) => {
+  const {rows} = await query(`
+      SELECT *
+      FROM pause_game
+      WHERE id = $1
+  `, [pauseId])
+
+
+  await query(`
+      INSERT INTO user_pause_table
+          (game_id, pause_id, start_date)
+      VALUES ($1, $2, now())
+  `, [gameId, pauseId])
+
+  await query(
+    `UPDATE user_solo_games
+     SET game_status = 'paused'
+     WHERE id = $1
+    `, [gameId])
+
+  await query(
+    `INSERT INTO dairy (user_id, created_date, title, entry, type)
+     VALUES ($1, NOW(), $2, $3, 'c')`,
+    [
+      userId,
+      `Paused Game`,
+      `Paused game for ${rows[0]["name"]}`,
+    ],
+  );
+
+}
+
 const UserModel = {
   create,
   getById,
@@ -2947,6 +3030,8 @@ const UserModel = {
   getOrgasmTypes,
   getDetailedAnalytics,
   getUserRank,
+  pauseGame,
+  resumeGame
 };
 
 export default UserModel;

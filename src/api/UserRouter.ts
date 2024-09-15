@@ -16,6 +16,7 @@ import crypto from "crypto";
 
 import {S3Client} from "@aws-sdk/client-s3";
 import multerS3 from "multer-s3";
+import * as PauseGameController from "../controllers/PauseGameController";
 
 const s3Client = new S3Client({
   region: "eu-west-2",
@@ -38,6 +39,12 @@ const upload = multer({
 });
 
 const userRouter = Router();
+
+userRouter.get('/get-paused-game-types', authUser, PauseGameController.getAll);
+
+userRouter.post("/pause-game", authUser, UserController.pauseGame);
+
+// userRouter.post("/resume-game", authUser, UserController.resumeGame);
 
 userRouter.get("/rank", authUser, UserController.getUserRank);
 
