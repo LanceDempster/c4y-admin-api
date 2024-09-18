@@ -13,8 +13,6 @@ import {Ticket} from "../interfaces/Ticket";
 import assert from "node:assert";
 import BadRequest from "../errors/BadRequest";
 import UserGame from "../schemas/UserGame";
-import userRouter from "../api/UserRouter";
-import {userInfo} from "node:os";
 
 export const create = async (user: User, productCode: number, next: any) => {
   try {
@@ -1179,7 +1177,7 @@ const fetchUserGames = async (userId: number): Promise<UserGame> => {
                LEFT JOIN punishments p4 ON punishment4id = p4.id
                LEFT JOIN punishments p5 ON punishment5id = p5.id
                LEFT JOIN game_verification_settings gvs ON user_solo_games.id = gvs.game_id
-               LEFT JOIN user_pause_table upt ON user_solo_games.id = upt.game_id
+               LEFT JOIN user_pause_table upt ON user_solo_games.id = upt.game_id and upt.end_date is null
       WHERE user_solo_games.user_id = $1
         AND (user_solo_games.game_status = 'In Game' OR user_solo_games.game_status = 'paused')
   `, [userId]);
@@ -1257,7 +1255,7 @@ const handleDeltaXp = async (userId: number, amount: number, reason: string, dat
       SET xp_points = GREATEST(0, xp_points + $1),
           level_id  = (SELECT id
                        FROM levels
-                       WHERE requiredpoints < users.xp_points + $1
+                       WHERE requiredpoints <= GREATEST(users.xp_points + $1, 0)
                        ORDER BY requiredpoints desc
                        LIMIT 1)
       WHERE id = $2
@@ -1920,6 +1918,15 @@ const submitCheatingWheel = async ({
   accepted: boolean;
   userId: number;
 }) => {
+
+  const {rows: game_type} = await query(`
+      select game_type
+      from user_solo_games
+      where id = $1
+  `, [gameId])
+
+  const gameType = game_type[0]["game_type"]
+
   const {rows} = await query(
     `SELECT product_code
      FROM user_product
@@ -1927,20 +1934,26 @@ const submitCheatingWheel = async ({
     [userId],
   );
 
-  await query(
+  const result2 = await query(
     `UPDATE cheater_punishment
      SET state = 2
-     WHERE id = $1`,
+     WHERE id = $1
+     returning is_game_ending
+    `,
     [cheaterWheelId],
   );
 
-  await query(
-    `UPDATE user_solo_games
-     SET game_status = 'completed'
-     WHERE id = $1
-       and user_id = $2`,
-    [gameId, userId],
-  );
+  const {is_game_ending} = result2.rows[0];
+
+  if (!is_game_ending) {
+    await query(
+      `UPDATE user_solo_games
+       SET game_status = 'completed'
+       WHERE id = $1
+         and user_id = $2`,
+      [gameId, userId],
+    );
+  }
 
   accepted
     ? await query(
@@ -1948,8 +1961,9 @@ const submitCheatingWheel = async ({
       [
         userId,
         new Date(),
-        "Accept cheating wheel spin",
-        `You cheated in your self-managed countdown game and accepted your results from the wheel ${itemName}`,
+        `Accept ${is_game_ending ? "Cheating" : "Late"}
+         wheel spin`,
+        `You ${is_game_ending ? "cheated" : "have been late to resume "} in your ${gameType} game and accepted your results from the wheel ${itemName}`,
         "c",
         rows[0].id,
         gameId,
@@ -1961,7 +1975,7 @@ const submitCheatingWheel = async ({
         userId,
         new Date(),
         "Reject cheating wheel spin",
-        `You cheated in your self-managed countdown game and rejected your results from the wheel ${itemName}`,
+        `You cheated in your ${gameType} game and rejected your results from the wheel ${itemName}`,
         "c",
         rows[0].id,
         gameId,
@@ -2930,35 +2944,129 @@ const pauseGame = async (gameId: number, pauseId: number, userId: number) => {
 
 }
 
-const resumeGame = async (gameId: number, pauseId: number, userId: number) => {
-  const {rows} = await query(`
-      SELECT *
-      FROM pause_game
-      WHERE id = $1
-  `, [pauseId])
+const resumeGame = async (gameId: number, userId: number) => {
+  const result = await query(`
+      UPDATE user_pause_table
+      SET end_date = NOW()
+      WHERE end_date IS NULL
+        AND game_id = $1
+      RETURNING pause_id, start_date
+  `, [gameId]);
 
+  if (result.rows.length === 0) {
+    throw new Error('No paused game found');
+  }
+
+  const {pause_id, start_date} = result.rows[0];
+
+  let {rows: pausedGame} = await query(
+    `
+        select *
+        from pause_game
+        where id = $1
+    `, [pause_id]
+  )
 
   await query(`
-      INSERT INTO user_pause_table
-          (game_id, pause_id, start_date)
-      VALUES ($1, $2, now())
-  `, [gameId, pauseId])
+      UPDATE tracker
+      SET total_pauses = total_pauses + 1
+      WHERE user_id = $1
+  `, [userId])
 
-  await query(
-    `UPDATE user_solo_games
-     SET game_status = 'paused'
-     WHERE id = $1
+  const now = new Date();
+  const pauseDuration = now.getTime() - new Date(start_date).getTime();
+  const pauseDurationMinutes = Math.round(pauseDuration / (1000 * 60)); // Round to 1 decimal place
+
+  let deltaPauseTimeIn5Min = (pausedGame[0]["time"] - pauseDurationMinutes) / 5;
+
+  if ((deltaPauseTimeIn5Min * -1) > pausedGame[0]["max_time_before_cancel"]) {
+    await query(`
+        UPDATE user_solo_games
+        SET game_status = 'completed'
+        where id = $1
     `, [gameId])
 
-  await query(
-    `INSERT INTO dairy (user_id, created_date, title, entry, type)
-     VALUES ($1, NOW(), $2, $3, 'c')`,
-    [
-      userId,
-      `Paused Game`,
-      `Paused game for ${rows[0]["name"]}`,
-    ],
-  );
+    const {rows: actionPointsRows} = await query(
+      `SELECT amount, id
+       FROM action_points
+       WHERE title = 'Cancel Game'`,
+      [],
+    );
+    const cancelGamePoints = actionPointsRows[0]?.amount || 0;
+
+    await handleDeltaXp(userId, cancelGamePoints, "User Canceled Game by not resuming for too long", new Date(), gameId, actionPointsRows[1])
+
+    await query(
+      `INSERT Into dairy(user_id, created_date, title, entry, type, game_id)
+       values ($1, $2, $3, $4, $5, $6)`,
+      [
+        userId,
+        new Date(),
+        "Game Canceled Because you are too late on resuming",
+        `Canceled game because you were late to resume and lost ${Math.abs(cancelGamePoints)}`,
+        "c",
+        gameId,
+      ],
+    );
+  } else if (deltaPauseTimeIn5Min < 0) {
+    // Query to get punishment IDs
+    const punishmentQuery =
+      "SELECT punishment_id FROM user_punishments WHERE user_id = $1 ORDER BY RANDOM() LIMIT 5";
+    const punishmentResult = await query(punishmentQuery, [userId]);
+
+    // Ensure we have exactly 4 punishments
+    if (punishmentResult.rows.length < 5) {
+      throw new Error("Not enough punishments found for the user.");
+    }
+
+    const punishments = punishmentResult.rows.map((row) => row.punishment_id);
+
+    await query(
+      `INSERT INTO cheater_punishment
+       (punishment1id, punishment2id, punishment3id, punishment4id, punishment5id,
+        game_id)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [...punishments, gameId],
+    );
+
+    await query(`
+        UPDATE user_solo_games
+        SET end_date    = end_date + ($1 || ' minutes')::interval,
+            game_status = 'In Game'
+        where id = $2
+    `, [(deltaPauseTimeIn5Min * 15) + pauseDurationMinutes, gameId])
+
+
+    await handleDeltaXp(userId, (deltaPauseTimeIn5Min * 15), "Late game resume", new Date(), gameId)
+
+    await query(
+      `INSERT INTO dairy (user_id, created_date, title, entry, type)
+       VALUES ($1, NOW(), $2, $3, 'c')`,
+      [
+        userId,
+        `Resume Game late and punishment applied`,
+        `Game resumed and user is punished has to roll punishment wheel and lock up time added by ${deltaPauseTimeIn5Min * 15} and points reduced by ${deltaPauseTimeIn5Min * 15}.`,
+      ],
+    );
+
+  } else {
+    await query(
+      `UPDATE user_solo_games
+       SET game_status = 'In Game'
+       WHERE id = $1
+      `, [gameId])
+
+    await query(
+      `INSERT INTO dairy (user_id, created_date, title, entry, type)
+       VALUES ($1, NOW(), $2, $3, 'c')`,
+      [
+        userId,
+        `Resume Game`,
+        `Game resumed `,
+      ],
+    );
+  }
+
 
 }
 

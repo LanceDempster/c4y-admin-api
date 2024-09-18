@@ -1943,7 +1943,7 @@ export const pauseGame: RequestHandler = async (req, res, next) => {
 
     return res
       .status(200)
-      .send(new Result(true, "User paused gamed.", result));
+      .send(new Result(true, "User paused game.", result));
   } catch (e) {
     next(e)
   }
@@ -1967,13 +1967,12 @@ export const resumeGame: RequestHandler = async (req, res, next) => {
 
     const result = await UserModel.resumeGame(
       req.body.gameId,
-      req.body.pauseId,
       user.id
     );
 
     return res
       .status(200)
-      .send(new Result(true, "User paused gamed.", result));
+      .send(new Result(true, "User resumed game.", result));
   } catch (e) {
     next(e)
   }

@@ -44,7 +44,7 @@ userRouter.get('/get-paused-game-types', authUser, PauseGameController.getAll);
 
 userRouter.post("/pause-game", authUser, UserController.pauseGame);
 
-// userRouter.post("/resume-game", authUser, UserController.resumeGame);
+userRouter.post("/resume-game", authUser, UserController.resumeGame);
 
 userRouter.get("/rank", authUser, UserController.getUserRank);
 
