@@ -1497,9 +1497,14 @@ const addUserGame = async ({
 
     // Insert into dairy and use the game id
     let diaryEntry = `Started Self-Managed game using ${gameType}`;
+
+    if (gameType !== "Stop Watch" && seconds) {
+      diaryEntry += ` for ${convertMinutesToDHM(seconds / 60)}`;
+    }
     if (typeof notes === "string" && notes.trim() !== "") {
       diaryEntry += `. Notes: ${notes}`;
     }
+
 
     await query(
       `INSERT Into dairy(user_id, created_date, title, entry, type, product, game_id)
