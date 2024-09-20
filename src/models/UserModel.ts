@@ -1887,7 +1887,7 @@ const userCheated = async ({
       userId,
       new Date(),
       "Cheated in game.",
-      `You cheated ${game[0]["game_type"]} game and lost ${cheatingGame[0]["amount"]}.`,
+      `You cheated ${game[0]["game_type"]} game and lost ${Math.abs(cheatingGame[0]["amount"])}.`,
       "c",
       rows[0].id,
       gameId,
@@ -1945,7 +1945,7 @@ const submitCheatingWheel = async ({
 
   const {is_game_ending} = result2.rows[0];
 
-  if (!is_game_ending) {
+  if (is_game_ending) {
     await query(
       `UPDATE user_solo_games
        SET game_status = 'completed'
@@ -1974,8 +1974,8 @@ const submitCheatingWheel = async ({
       [
         userId,
         new Date(),
-        "Reject cheating wheel spin",
-        `You cheated in your ${gameType} game and rejected your results from the wheel ${itemName}`,
+        `Reject ${is_game_ending ? "cheating" : "Late"} wheel spin`,
+        `You ${is_game_ending ? "cheated" : "late"} in your ${gameType} game and rejected your results from the wheel ${itemName}`,
         "c",
         rows[0].id,
         gameId,
@@ -3024,8 +3024,8 @@ const resumeGame = async (gameId: number, userId: number) => {
     await query(
       `INSERT INTO cheater_punishment
        (punishment1id, punishment2id, punishment3id, punishment4id, punishment5id,
-        game_id)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
+        game_id, is_game_ending)
+       VALUES ($1, $2, $3, $4, $5, $6, false)`,
       [...punishments, gameId],
     );
 
@@ -3041,11 +3041,12 @@ const resumeGame = async (gameId: number, userId: number) => {
 
     await query(
       `INSERT INTO dairy (user_id, created_date, title, entry, type)
-       VALUES ($1, NOW(), $2, $3, 'c')`,
+       VALUES ($1, $4, $2, $3, 'c')`,
       [
         userId,
         `Resume Game late and punishment applied`,
-        `Game resumed and user is punished has to roll punishment wheel and lock up time added by ${deltaPauseTimeIn5Min * 15} and points reduced by ${deltaPauseTimeIn5Min * 15}.`,
+        `Game resumed and user is punished has to roll punishment wheel and lock up time increased by ${convertMinutesToDHM(Math.abs(deltaPauseTimeIn5Min * 15))} and points reduced by ${Math.abs(deltaPauseTimeIn5Min * 15)}.`,
+        new Date()
       ],
     );
 
