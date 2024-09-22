@@ -387,7 +387,7 @@ const updateSettings1 = async ({
                          marketing_messages   = $4,
                          keyholder            = $5,
                          user_story           = $6,
-                         product_setup_status = 1
+                         product_setup_status = 2
                      WHERE user_id = $1
                      RETURNING *`;
 
@@ -502,7 +502,7 @@ const updateSettings3 = async ({
   await query(deleteQueryText, [id]);
 
   const queryText = `update user_settings
-                     set product_setup_status = 3
+                     set product_setup_status = 2
                      where user_id = $1
                      RETURNING *`;
 
@@ -533,7 +533,7 @@ const updateSettings4 = async ({
   await query(deleteQueryText, [id]);
 
   const queryText = `update user_settings
-                     set product_setup_status = 4
+                     set product_setup_status = 3
                      where user_id = $1
                      RETURNING *`;
 
@@ -564,7 +564,7 @@ const updateSettings5 = async ({
   await query(deleteQueryText, [id]);
 
   const queryText = `update user_settings
-                     set product_setup_status = 5
+                     set product_setup_status = 4
                      where user_id = $1
                      RETURNING *`;
 
@@ -595,7 +595,7 @@ const updateSettings6 = async ({
   await query(deleteQueryText, [id]);
 
   const queryText = `update user_settings
-                     set product_setup_status = 6
+                     set product_setup_status = 5
                      where user_id = $1
                      RETURNING *`;
 
@@ -626,7 +626,7 @@ const updateSettings7 = async ({
   await query(deleteQueryText, [id]);
 
   const queryText = `update user_settings
-                     set product_setup_status = 7
+                     set product_setup_status = 6
                      where user_id = $1
                      RETURNING *`;
 
@@ -653,7 +653,7 @@ const updateSettings8 = async ({
   minimum: number;
 }) => {
   const queryText = `update user_settings
-                     set product_setup_status = 8,
+                     set product_setup_status = 7,
                          min_time             = $3,
                          max_time             =
                              $2
@@ -673,7 +673,7 @@ const updateSettings9 = async ({
   keyStorage: number;
 }) => {
   const queryText = `update user_settings
-                     set product_setup_status = 9,
+                     set product_setup_status = 8,
                          key_storage          = $2
                      where user_id = $1
                      RETURNING *`;
@@ -691,7 +691,7 @@ const updateSettings10 = async ({
   fileLocation: string;
 }) => {
   const queryText = `update user_settings
-                     set product_setup_status = 10,
+                     set product_setup_status = 9,
                          user_url             = $2
                      where user_id = $1
                      RETURNING *`;
@@ -709,7 +709,7 @@ const updateSettings11 = async ({
   fileLocation: string;
 }) => {
   const queryText = `update user_settings
-                     set product_setup_status = 11,
+                     set product_setup_status = 10,
                          avatar_url           = $2
                      where user_id = $1
                      RETURNING *`;
@@ -1359,7 +1359,16 @@ const applyPunishment = async (game: UserGame, userId: number, windowEndDate: Da
 
   await query(`
       UPDATE user_solo_games
-      SET end_date = end_date + ($2 * INTERVAL '1 minute')
+      SET end_date =
+              CASE
+                  WHEN max_lock_minutes IS NOT NULL THEN
+                      LEAST(
+                              now() + (max_lock_minutes * INTERVAL '1 minute'),
+                              end_date + ($2 * INTERVAL '1 minute')
+                      )
+                  ELSE
+                      end_date + ($2 * INTERVAL '1 minute')
+                  END
       WHERE id = $1
   `, [game.id, game.punishment_time]);
 
@@ -1380,6 +1389,7 @@ const updateGameEndDate = async (gameId: number): Promise<string> => {
 const addUserGame = async ({
   userId,
   seconds,
+  maxLockInSeconds,
   minimumWheelPercentage,
   maximumWheelPercentage,
   imageVerificationInterval,
@@ -1389,6 +1399,7 @@ const addUserGame = async ({
 }: {
   userId: number;
   seconds: number | null | undefined;
+  maxLockInSeconds: number | null | undefined;
   minimumWheelPercentage: number | null | undefined;
   maximumWheelPercentage: number | null | undefined;
   imageVerificationInterval: number | null | undefined;
@@ -1443,10 +1454,10 @@ const addUserGame = async ({
 
       result = await query(
         `INSERT INTO user_solo_games (user_id, game_status, game_type, start_date, end_date, original_end_date,
-                                      minimum_wheel_percentage, maximum_wheel_percentage)
+                                      minimum_wheel_percentage, maximum_wheel_percentage, max_lock_minutes)
          VALUES ($1, $2, $3, now()::timestamp, now()::timestamp + ($4 * INTERVAL '1 minute'),
                  now()::timestamp + ($4 * INTERVAL '1 minute'),
-                 $5, $6)
+                 $5, $6, $7)
          RETURNING id`,
         [
           userId,
@@ -1455,6 +1466,7 @@ const addUserGame = async ({
           seconds / 60,
           minimumWheelPercentage,
           maximumWheelPercentage,
+          maxLockInSeconds ? maxLockInSeconds / 60 : null
         ],
       );
     }
@@ -1465,9 +1477,7 @@ const addUserGame = async ({
     if (typeof imageVerificationInterval === "string") {
       imageVerificationInterval = parseInt(imageVerificationInterval, 10);
     }
-    if (typeof imageVerificationPunishment === "string") {
-      imageVerificationPunishment = parseInt(imageVerificationPunishment, 10);
-    }
+
 
     if (
       typeof imageVerificationInterval === "number" &&
@@ -1806,7 +1816,16 @@ const submitWheel = async ({
     if (type === 1) {
       await query(
         `UPDATE user_solo_games
-         SET end_date = end_date + ($2 * INTERVAL '1 minute')
+         SET end_date =
+                 CASE
+                     WHEN max_lock_minutes IS NOT NULL THEN
+                         LEAST(
+                                 now() + (max_lock_minutes * INTERVAL '1 minute'),
+                                 end_date + ($2 * INTERVAL '1 minute')
+                         )
+                     ELSE
+                         end_date + ($2 * INTERVAL '1 minute')
+                     END
          WHERE id = $1`,
         [gameId, itemName],
       );
@@ -3036,7 +3055,16 @@ const resumeGame = async (gameId: number, userId: number) => {
 
     await query(`
         UPDATE user_solo_games
-        SET end_date    = end_date + ($1 || ' minutes')::interval,
+        SET end_date    =
+                CASE
+                    WHEN max_lock_minutes IS NOT NULL THEN
+                        LEAST(
+                                now() + (max_lock_minutes * INTERVAL '1 minute'),
+                                end_date + ($1 || ' minutes')::interval
+                        )
+                    ELSE
+                        end_date + ($1 || ' minutes')::interval
+                    END,
             game_status = 'In Game'
         where id = $2
     `, [(deltaPauseTimeIn5Min * 15) + pauseDurationMinutes, gameId])

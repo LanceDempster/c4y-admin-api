@@ -1297,6 +1297,7 @@ export const addUserGame: RequestHandler = async (req, res, next) => {
     const id = user.id;
     const {
       seconds,
+      maxLockInSeconds,
       minimumWheelPercentage,
       maximumWheelPercentage,
       imageVerificationInterval,
@@ -1308,6 +1309,7 @@ export const addUserGame: RequestHandler = async (req, res, next) => {
     const result = await UserModel.addUserGame({
       userId: id,
       seconds,
+      maxLockInSeconds,
       minimumWheelPercentage,
       maximumWheelPercentage,
       imageVerificationInterval,
