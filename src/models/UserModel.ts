@@ -3104,6 +3104,44 @@ const resumeGame = async (gameId: number, userId: number) => {
 
 }
 
+const extendGame = async (gameId: number, minutes: number, userId: number) => {
+  const {rows} = await query(
+    `SELECT product_code
+       FROM user_product
+       WHERE user_id = $1`,
+    [userId],
+  );
+
+
+  let endDate = new Date();
+  endDate.setMinutes(endDate.getMinutes() + minutes);
+
+  await query(`
+      UPDATE user_solo_games
+      SET end_date          = $1,
+          original_end_date = $1
+      WHERE id = $2
+  `, [endDate, gameId]);
+
+
+  await query(
+    `INSERT Into dairy(user_id, created_date, title, entry, type, product, game_id)
+     values ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      userId,
+      new Date(),
+      "Game extended",
+      `You have decided to extend the game using the wheel and got ${convertMinutesToDHM(minutes)} minutes.`,
+      "c",
+      rows[0]["product_code"],
+      gameId,
+    ],
+  );
+
+  return true;
+}
+
+
 const UserModel = {
   create,
   getById,
@@ -3173,7 +3211,8 @@ const UserModel = {
   getDetailedAnalytics,
   getUserRank,
   pauseGame,
-  resumeGame
+  resumeGame,
+  extendGame
 };
 
 export default UserModel;

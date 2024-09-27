@@ -40,6 +40,8 @@ const upload = multer({
 
 const userRouter = Router();
 
+userRouter.post('/extend-game', authUser, UserController.extendGame);
+
 userRouter.get('/get-paused-game-types', authUser, PauseGameController.getAll);
 
 userRouter.post("/pause-game", authUser, UserController.pauseGame);
