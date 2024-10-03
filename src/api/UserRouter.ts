@@ -40,6 +40,12 @@ const upload = multer({
 
 const userRouter = Router();
 
+userRouter.get('/get-medals', authUser, UserController.getMedals);
+
+userRouter.get('/get-events', authUser, UserController.getEvents);
+
+userRouter.post('/register-event', authUser, UserController.registerEvent)
+
 userRouter.post('/extend-game', authUser, UserController.extendGame);
 
 userRouter.get('/get-paused-game-types', authUser, PauseGameController.getAll);

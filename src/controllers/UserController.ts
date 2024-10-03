@@ -2009,3 +2009,93 @@ export const extendGame: RequestHandler = async (req, res, next) => {
     next(e)
   }
 };
+
+export const getEvents: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const result = await UserModel.getEvents();
+
+    res.status(200).send(
+      new Result(
+        true,
+        result.length + "",
+        result
+      ),
+    );
+  } catch (e) {
+    next(e)
+  }
+};
+
+export const getMedals: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const result = await UserModel.getMedals(user.id);
+
+    res.status(200).send(
+      new Result(
+        true,
+        result.length + "",
+        result
+      ),
+    );
+  } catch (e) {
+    next(e)
+  }
+};
+
+export const registerEvent: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const result = await UserModel.registerEvent(req.body.eventId, user.id);
+
+    res.status(200).send(
+      new Result(
+        true,
+        result ? "Completed" : "Failed"
+      ),
+    );
+  } catch (e) {
+    next(e)
+  }
+}
+

@@ -1063,12 +1063,200 @@ const getUserGames = async ({userId}: { userId: number }): Promise<UserGame[]> =
 
   const xpPerDay = await fetchDailyLockXP();
 
+  await checkEvents(game, userId);
+
   game = await dailyLockXpCheck(game, userId, xpPerDay);
   game = await failedVerificationsCheck(game, userId);
   game = await checkRankUp(game, userId);
 
   return [game];
 };
+
+function getDatesBetween(startDate: Date, endDate: Date) {
+  const dates = [];
+  let currentDate = new Date(startDate);
+
+  while (currentDate <= endDate) {
+    dates.push(new Date(currentDate));
+    currentDate = new Date(currentDate.getTime() + 86400 * 1000);
+  }
+
+  return dates;
+}
+
+// Function to calculate overlapping hours between two date ranges
+// Step 1: Define the type for the date range
+type DateRange = {
+  startDate: Date;
+  endDate: Date;
+};
+
+// Step 2: Function to calculate the overlap between two date ranges
+function calculateOverlapHours(range1: DateRange, range2: DateRange): number {
+  const start = new Date(Math.max(range1.startDate.getTime(), range2.startDate.getTime()));
+  const end = new Date(Math.min(range1.endDate.getTime(), range2.endDate.getTime()));
+
+  if (start < end) {
+    return (end.getTime() - start.getTime()) / (1000 * 60 * 60); // Convert milliseconds to hours
+  }
+  return 0;
+}
+
+// Step 3: Function to calculate the total overlap hours with a single date range
+function totalOverlapHours(dateRanges: DateRange[], singleRange: DateRange): number {
+  return dateRanges.reduce((total, range) => {
+    return total + calculateOverlapHours(range, singleRange);
+  }, 0);
+}
+
+const checkEvents = async (game: UserGame, userId: number): Promise<void> => {
+  /*
+    - get all user events where status is running
+    - check each event to see if end date has passed
+    - calculate if the user has been locked on every day how many hours he has been locked
+    - compare with event levels hours required
+    - set user_event_status to either failed or completed
+    - if completed then set status to that and add level_id as well
+    - if completed then add xp from event_level xp
+    - add diary entry to everything that happened
+   */
+
+  const currentDate = new Date();
+
+  const {rows: userRunningEvents} = await query(`
+      SELECT *
+      FROM user_event
+               left join event e on user_event.event_code = e.event_code
+      WHERE user_id = $1
+        AND status = 'running'
+  `, [userId])
+
+  for (const event of userRunningEvents) {
+    if (currentDate > event["end_date"]) {
+
+      let skip1stDay = true;
+      let lockedDays = [];
+      for (let day of getDatesBetween(new Date(event["start_date"]), new Date(event["end_date"]))) {
+
+        if (skip1stDay) {
+          skip1stDay = false
+          continue
+        }
+
+        day = new Date(day);
+
+        let lastDay = new Date(day.getTime() - 86400 * 1000);
+
+        // handle failed games
+        const {rows} = await query("SELECT * FROM user_solo_games WHERE start_date < $1 AND (end_date IS null OR (end_date > $2)) and user_id = $3 and (game_status = 'In Game' or game_success = true)", [day, lastDay, userId])
+
+        let totalHours = totalOverlapHours(rows.map((game): DateRange => {
+          return {
+            startDate: game.start_date,
+            endDate: game.end_date > new Date() ? new Date() : game.end_date,
+          }
+        }), {startDate: lastDay, endDate: day});
+
+        lockedDays.push({
+          day: lastDay,
+          hours: totalHours
+        })
+      }
+
+      let minimumHours = 24;
+
+      for (const lockedDay of lockedDays) {
+        if (lockedDay.hours < minimumHours) {
+          minimumHours = lockedDay.hours;
+        }
+      }
+
+
+      const {rows: levels} = await query("select * from event_level where event_code = $1 order by hours desc", [event.event_code]);
+
+      let levelIndex: number | null = 0;
+      let i = 0;
+      let totalLevels = levels.length;
+
+      while (lockedDays.length > i) {
+        if (lockedDays[i].hours < levels[levelIndex]["hours"]) {
+
+          if (levelIndex + 1 === totalLevels) {
+            levelIndex = null;
+            break;
+          } else {
+            levelIndex++;
+          }
+
+          continue;
+        }
+
+        i++;
+      }
+
+      if (levelIndex !== null) {
+        await query(`UPDATE user_event
+                     SET status         = 'completed',
+                         event_level_id = $2
+                     WHERE event_code = $1`, [event.event_code, levels[levelIndex]["id"]]);
+
+
+        await handleDeltaXp(userId, levels[levelIndex]["xp"], `User got ${levels[levelIndex]["name"]} in ${event.name}`, new Date(), null);
+
+        const eventColumnMap: Record<string, string> = {
+          "Locktober": "total_events_october",
+          "No Nut November": "total_events_november",
+          "Denial December": "total_events_december",
+        };
+
+        const column: string = eventColumnMap[event["name"]] || "total_events_other";
+
+        await query(`
+                    UPDATE tracker
+                    SET total_events = total_events + 1,
+                        ${column}    = ${column} + 1
+                    WHERE user_id = $1`,
+          [userId]
+        );
+
+        await query(`
+            INSERT INTO dairy (user_id, created_date, title, entry, type)
+            VALUES ($1, $2, $3, $4, 'c')
+        `, [userId, new Date(), `${event.name} Success`, `You have successfully finished ${event.name} with ${levels[levelIndex]["name"]} Medal`])
+
+      } else {
+        await query(`UPDATE user_event
+                     SET status = 'completed'
+                     WHERE event_code = $1`, [event.event_code]);
+
+        const eventColumnMap: Record<string, string> = {
+          "Locktober": "total_events_october",
+          "No Nut November": "total_events_november",
+          "Denial December": "total_events_december",
+        };
+
+        const column: string = eventColumnMap[event["name"]] || "total_events_other";
+
+        await query(`
+                    UPDATE tracker
+                    SET total_events        = total_events + 1,
+                        ${column}           = ${column} + 1,
+                        total_events_failed = total_events_failed + 1
+                    WHERE user_id = $1`,
+          [userId]
+        );
+
+        await query(`
+            INSERT INTO dairy (user_id, created_date, title, entry, type)
+            VALUES ($1, $2, $3, $4, 'c')
+        `, [userId, new Date(), `${event.name} Fail`, `You have failed to finish ${event.name}`])
+      }
+
+    }
+  }
+
+
+}
 
 const checkRankUp = async (game: UserGame, userId: number): Promise<UserGame> => {
   /*
@@ -1133,31 +1321,31 @@ const checkRankUp = async (game: UserGame, userId: number): Promise<UserGame> =>
 const fetchUserGames = async (userId: number): Promise<UserGame> => {
   const {rows} = await query(`
       SELECT user_solo_games.*,
-             cheater_punishment.id as cheater_wheel_id,
-             p1.name               as punishment1Name,
-             p2.name               as punishment2Name,
-             p3.name               as punishment3Name,
-             p4.name               as punishment4Name,
-             p5.name               as punishment5Name,
+             cheater_punishment.id             as cheater_wheel_id,
+             p1.name                           as punishment1Name,
+             p2.name                           as punishment2Name,
+             p3.name                           as punishment3Name,
+             p4.name                           as punishment4Name,
+             p5.name                           as punishment5Name,
              gvs.regularity,
              gvs.punishment_time,
              (SELECT image_url
               FROM game_verification_image
               WHERE game_id = user_solo_games.id
               ORDER BY date DESC
-              LIMIT 1)             as latest_verification_image,
+              LIMIT 1)                         as latest_verification_image,
              (SELECT date
               FROM game_verification_image
               WHERE game_id = user_solo_games.id
               ORDER BY date DESC
-              LIMIT 1)             as latest_verification_time,
+              LIMIT 1)                         as latest_verification_time,
              (SELECT date
               FROM xp_change
               WHERE user_id = user_solo_games.user_id
                 AND game_id = user_solo_games.id
                 AND reason = 'Daily Locked Award'
               ORDER BY date DESC
-              LIMIT 1)             AS last_xp_award_date,
+              LIMIT 1)                         AS last_xp_award_date,
              (SELECT date
               FROM xp_change
               WHERE user_id = user_solo_games.user_id
@@ -1165,9 +1353,14 @@ const fetchUserGames = async (userId: number): Promise<UserGame> => {
                 AND (reason = 'Missed Image Verification'
                   OR reason = 'Image Verification')
               ORDER BY date DESC
-              LIMIT 1)             AS last_verification_event_date,
-             upt.start_date        AS pause_start_date,
-             upt.end_date          AS pause_end_date
+              LIMIT 1)                         AS last_verification_event_date,
+             upt.start_date                    AS pause_start_date,
+             upt.end_date                      AS pause_end_date,
+             EXISTS (SELECT 1
+                     FROM user_event ue
+                              JOIN event e ON ue.event_code = e.event_code
+                     WHERE ue.user_id = user_solo_games.user_id
+                       AND e.end_date > NOW()) AS is_active_event
       FROM user_solo_games
                LEFT JOIN cheater_punishment
                          ON user_solo_games.id = cheater_punishment.game_id AND cheater_punishment.state = 1
@@ -1237,7 +1430,7 @@ const dailyLockXpCheck = async (game: UserGame, userId: number, xpPerDay: number
   return game;
 };
 
-const handleDeltaXp = async (userId: number, amount: number, reason: string, date: Date, gameId: number, actionPointId?: number): Promise<number> => {
+const handleDeltaXp = async (userId: number, amount: number, reason: string, date: Date, gameId: number | null, actionPointId?: number): Promise<number> => {
   const {rows: userData} = await query(`
       SELECT users.*, l."order" as levelOrder
       FROM users
@@ -3107,8 +3300,8 @@ const resumeGame = async (gameId: number, userId: number) => {
 const extendGame = async (gameId: number, minutes: number, userId: number) => {
   const {rows} = await query(
     `SELECT product_code
-       FROM user_product
-       WHERE user_id = $1`,
+     FROM user_product
+     WHERE user_id = $1`,
     [userId],
   );
 
@@ -3141,6 +3334,65 @@ const extendGame = async (gameId: number, minutes: number, userId: number) => {
   return true;
 }
 
+async function getEvents() {
+  const {rows} = await query("SELECT * FROM event order by event_code desc", [])
+
+  for (let i = 0; i < rows.length; i++) {
+    const {rows: registeredUsers} = await query("select * from user_event where event_code = $1", [rows[i]["event_code"]])
+    rows[i]["registeredUsers"] = registeredUsers;
+
+    const {rows: rules} = await query("select id, content from event_rule where event_code = $1", [rows[i]["event_code"]])
+    rows[i]["rules"] = rules;
+
+    const {rows: levels} = await query("select * from event_level where event_code = $1", [rows[i]["event_code"]])
+    rows[i]["levels"] = levels;
+  }
+
+  return rows.map((x) => recursiveToCamel(x));
+}
+
+async function getMedals(userId: number) {
+  const {rows} = await query(`SELECT distinct on (e.id) e.id,
+                                                        e.name,
+                                                        event_level.image_url,
+                                                        event_level.name as level_name,
+                                                        e.start_date
+                              FROM user_event
+                                       left join event e on user_event.event_code = e.event_code
+                                       left join event_level on e.event_code = event_level.event_code
+                              where user_id = $1`, [userId])
+
+  return rows.map((x) => recursiveToCamel(x));
+}
+
+
+const isNextMonthEvent = (startDate: string) => {
+  const eventDate = new Date(startDate);
+  const today = new Date();
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+
+  return nextMonth > eventDate && today < eventDate;
+};
+
+async function registerEvent(eventId: number, userId: number) {
+  const {rows: event} = await query("select * from event WHERE id = $1", [eventId]);
+
+  const {rows: userEvents} = await query("select * from user_event WHERE user_id = $1 and event_code = $2", [userId, event[0]?.event_code ?? -1]);
+
+  if (isNextMonthEvent(event[0].start_date) && userEvents.length === 0) {
+    await query("INSERT INTO user_event (event_code, user_id, created_date) VALUES ($1, $2, $3)", [event[0].event_code, userId, new Date()])
+
+    await query(`
+                INSERT INTO dairy (user_id, created_date, title, entry, type)
+                VALUES ($1, $2, $3, $4, $5)`,
+      [userId, new Date(), `Registered for ${event[0]["name"]}`, "", "c"])
+
+  } else {
+    return false
+  }
+
+  return true;
+}
 
 const UserModel = {
   create,
@@ -3212,7 +3464,10 @@ const UserModel = {
   getUserRank,
   pauseGame,
   resumeGame,
-  extendGame
+  extendGame,
+  getEvents,
+  registerEvent,
+  getMedals
 };
 
 export default UserModel;
