@@ -1356,6 +1356,8 @@ const fetchUserGames = async (userId: number): Promise<UserGame> => {
               LIMIT 1)                         AS last_verification_event_date,
              upt.start_date                    AS pause_start_date,
              upt.end_date                      AS pause_end_date,
+             pause_game.time                   AS pause_time,
+             pause_game.max_time_before_cancel AS max_pause_time,
              EXISTS (SELECT 1
                      FROM user_event ue
                               JOIN event e ON ue.event_code = e.event_code
@@ -1371,6 +1373,7 @@ const fetchUserGames = async (userId: number): Promise<UserGame> => {
                LEFT JOIN punishments p5 ON punishment5id = p5.id
                LEFT JOIN game_verification_settings gvs ON user_solo_games.id = gvs.game_id
                LEFT JOIN user_pause_table upt ON user_solo_games.id = upt.game_id and upt.end_date is null
+               left join pause_game ON upt.pause_id = pause_game.id
       WHERE user_solo_games.user_id = $1
         AND (user_solo_games.game_status = 'In Game' OR user_solo_games.game_status = 'paused')
   `, [userId]);
@@ -1384,10 +1387,6 @@ const fetchUserGames = async (userId: number): Promise<UserGame> => {
 
     // Add the pause duration to both end_date and original_end_date
     game.end_date = new Date(new Date(game.end_date).getTime() + pauseDuration);
-
-    // Remove the pause-related fields to keep the return type consistent
-    delete game.pause_start_date;
-    delete game.pause_end_date;
   }
 
   return game;
