@@ -1956,7 +1956,7 @@ function convertMinutesToDHM(minutes: number) {
   minutes -= days * 60 * 24;
   const hours = Math.floor(minutes / 60);
   minutes -= hours * 60;
-  return `${days}D ${hours}H ${minutes}M`;
+  return `${days}D ${hours}H ${Math.floor(minutes)}M`;
 }
 
 const submitWheel = async ({
@@ -3393,6 +3393,116 @@ async function registerEvent(eventId: number, userId: number) {
   return true;
 }
 
+
+function getCurrentOrFutureEventWithMembers(events: any[]) {
+  let response = "";
+
+  const currentDate = new Date();
+
+  for (const event of events) {
+    if (
+      new Date(currentDate.getTime()) > new Date(new Date(event["startDate"]).getTime() - (1000 * 60 * 60 * 24 * 30))
+      &&
+      currentDate < event["endDate"]
+    ) {
+      response += event["name"] + " has " + event["registeredUsers"].length + " members playing, ";
+    }
+  }
+
+  return response;
+}
+
+function getJoinUs(events: any[]) {
+  let response = "Join us for ";
+
+  const currentDate = new Date();
+
+  let first = true;
+
+  for (const event of events) {
+    if (
+      new Date(currentDate.getTime()) > new Date(new Date(event["startDate"]).getTime() - (1000 * 60 * 60 * 24 * 30))
+      &&
+      currentDate < event["startDate"]
+    ) {
+      if (first) {
+        response += event["name"];
+      } else {
+        response += " and" + event["name"];
+      }
+    }
+  }
+
+  for (const event of events) {
+    if (
+      new Date(currentDate.getTime()) > new Date(new Date(event["startDate"]).getTime() - (1000 * 60 * 60 * 24 * 30))
+      &&
+      currentDate < event["startDate"]
+    ) {
+      response += " \n" + event.name + " is: " + convertMinutesToDHM((new Date(event["startDate"]).getTime() - currentDate.getTime()) / (1000 * 60)) + " away";
+    }
+  }
+
+  if (response === "Join us for ") {
+    return ""
+  }
+
+  return response;
+}
+
+async function getCommunityNews() {
+  const events = await getEvents();
+
+  let response = "";
+
+  response += getCurrentOrFutureEventWithMembers(events);
+  response += getJoinUs(events);
+
+  if (response === "") {
+    response = "No news currently";
+  }
+
+  return response;
+}
+
+async function populateSoloLeaderboard() {
+  const currentDate = new Date();
+
+  await query(`DELETE
+               FROM solo_leader_board`, [])
+  const {rows} = await query(`select users.id as userId, user_solo_games.start_date
+                              from user_solo_games
+                                       left join users on user_solo_games.user_id = users.id
+                                       left join user_settings us on users.id = us.user_id
+                              WHERE game_status != 'completed'
+                                and us.community = true`, []);
+
+  for (let i = 0; i < rows.length; i++) {
+    let row = rows[i];
+
+    await query(`
+                INSERT INTO solo_leader_board (userid, total_time, create_date)
+                values ($1, $2, $3)
+      `,
+      // @ts-ignore
+      [row["userid"], Math.floor(new Date(currentDate.getTime() - new Date(row["start_date"]).getTime()).getTime() / (1000 * 60)), currentDate])
+  }
+}
+
+async function getSoloLeaderBoard() {
+  const currentDate = new Date();
+
+  const {rows} = await query("SELECT solo_leader_board.total_time, users.country, users.first_name, solo_leader_board.create_date FROM solo_leader_board left join users on solo_leader_board.userid = users.id order by total_time desc", []);
+
+  if (rows.length === 0 || currentDate.getTime() > new Date(rows[0]["create_date"]).getTime() + (1000 * 60 * 60 * 12)) {
+    await populateSoloLeaderboard();
+
+    return getSoloLeaderBoard()
+  }
+
+  return rows;
+}
+
 const UserModel = {
   create,
   getById,
@@ -3466,7 +3576,9 @@ const UserModel = {
   extendGame,
   getEvents,
   registerEvent,
-  getMedals
+  getMedals,
+  getCommunityNews,
+  getSoloLeaderBoard
 };
 
 export default UserModel;

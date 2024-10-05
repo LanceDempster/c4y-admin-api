@@ -40,6 +40,10 @@ const upload = multer({
 
 const userRouter = Router();
 
+userRouter.get('/community-solo-leader-board', authUser, UserController.getSoloLeaderBoard);
+
+userRouter.get('/community-news', authUser, UserController.getCommunityNews);
+
 userRouter.get('/get-medals', authUser, UserController.getMedals);
 
 userRouter.get('/get-events', authUser, UserController.getEvents);

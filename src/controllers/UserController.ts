@@ -2098,4 +2098,62 @@ export const registerEvent: RequestHandler = async (req, res, next) => {
     next(e)
   }
 }
+export const getCommunityNews: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
 
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const result = await UserModel.getCommunityNews();
+
+    res.status(200).send(
+      new Result(
+        true,
+        "",
+        result
+      ),
+    );
+  } catch (e) {
+    next(e)
+  }
+}
+
+export const getSoloLeaderBoard: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const result = await UserModel.getSoloLeaderBoard();
+
+    res.status(200).send(
+      new Result(
+        true,
+        "",
+        result
+      ),
+    );
+  } catch (e) {
+    next(e)
+  }
+}
