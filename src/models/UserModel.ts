@@ -3297,6 +3297,7 @@ const resumeGame = async (gameId: number, userId: number) => {
 }
 
 const extendGame = async (gameId: number, minutes: number, userId: number) => {
+  // Query the product code for the user
   const {rows} = await query(
     `SELECT product_code
      FROM user_product
@@ -3304,21 +3305,45 @@ const extendGame = async (gameId: number, minutes: number, userId: number) => {
     [userId],
   );
 
+  // Query the max_lock_minutes and current end_date from the user_solo_games table
+  const {rows: gameRows} = await query(
+    `SELECT max_lock_minutes, end_date
+     FROM user_solo_games
+     WHERE id = $1`,
+    [gameId],
+  );
 
-  let endDate = new Date();
-  endDate.setMinutes(endDate.getMinutes() + minutes);
+  const maxLockMinutes = gameRows[0]["max_lock_minutes"];
+  const currentEndDate = new Date(gameRows[0]["end_date"]);
 
-  await query(`
-      UPDATE user_solo_games
-      SET end_date          = $1,
-          original_end_date = $1
-      WHERE id = $2
-  `, [endDate, gameId]);
+  // Calculate the new end date by adding the extension minutes
+  let newEndDate = new Date();
+  newEndDate.setMinutes(currentEndDate.getMinutes() + minutes);
 
+  // Calculate the maximum allowed end date based on max_lock_minutes
+  if (maxLockMinutes) {
+    const maxEndDate = new Date();
+    maxEndDate.setMinutes(currentEndDate.getMinutes() + maxLockMinutes);
 
+    // Ensure the new end date does not exceed the max_end_date
+    if (newEndDate > maxEndDate) {
+      newEndDate = maxEndDate;
+    }
+  }
+
+  // Update the end_date and original_end_date in the user_solo_games table
   await query(
-    `INSERT Into dairy(user_id, created_date, title, entry, type, product, game_id)
-     values ($1, $2, $3, $4, $5, $6, $7)`,
+    `UPDATE user_solo_games
+     SET end_date          = $1,
+         original_end_date = $1
+     WHERE id = $2`,
+    [newEndDate, gameId],
+  );
+
+  // Log the extension in the dairy table
+  await query(
+    `INSERT INTO dairy(user_id, created_date, title, entry, type, product, game_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
       userId,
       new Date(),
@@ -3331,7 +3356,8 @@ const extendGame = async (gameId: number, minutes: number, userId: number) => {
   );
 
   return true;
-}
+};
+
 
 async function getEvents() {
   const {rows} = await query("SELECT * FROM event order by event_code desc", [])
