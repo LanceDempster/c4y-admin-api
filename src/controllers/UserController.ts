@@ -1272,7 +1272,7 @@ export const getUserGame: RequestHandler = async (req, res, next) => {
 
     const result = await UserModel.getUserGames({userId});
 
-    return res.status(200).send(new Result(true, "Added running game", result));
+    return res.status(200).send(new Result(true, "Get running game", result));
   } catch (e) {
     next(e);
   }
@@ -2150,6 +2150,130 @@ export const getSoloLeaderBoard: RequestHandler = async (req, res, next) => {
       new Result(
         true,
         "",
+        result
+      ),
+    );
+  } catch (e) {
+    next(e)
+  }
+}
+
+export const getAdventures: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const result = await UserModel.getAdventures(user.id);
+
+    res.status(200).send(
+      new Result(
+        true,
+        "",
+        result
+      ),
+    );
+  } catch (e) {
+    next(e)
+  }
+}
+
+export const registerAdventure: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    const result = await UserModel.registerAdventure(req.body.adventureId, user.id);
+
+    res.status(200).send(
+      new Result(
+        result,
+        result ? "Completed" : "Failed"
+      ),
+    );
+  } catch (e) {
+    next(e)
+  }
+}
+
+export const submitAdventure: RequestHandler = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return next(new NotAuthorized("Unauthorized"));
+    }
+
+    const decoded: Token = verify(token, process.env.SECRET as string) as any;
+
+    const user = await UserModel.getById(decoded.id);
+
+    if (!user || decoded.role !== "USER") {
+      return next(new NotAuthorized("Invalid token"));
+    }
+
+    // @ts-ignore
+    const fileLocation = req?.file?.location;
+
+    const result = await UserModel.submitAdventure(user.id, req.body.adventureId, fileLocation, req.body.success == 1);
+
+    res.status(200).send(
+      new Result(
+        true,
+        "Adventure Submitted",
+        result
+      ),
+    );
+  } catch (e) {
+    next(e)
+  }
+}
+
+export const getAdventureVerification: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await UserModel.getAdventureVerification();
+
+    res.status(200).send(
+      new Result(
+        true,
+        "Adventure Submitted",
+        result
+      ),
+    );
+  } catch (e) {
+    next(e)
+  }
+}
+
+export const adminVerifyAdventure: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await UserModel.verifyAdventure(req.body.userAdventureId, req.body.success);
+
+    res.status(200).send(
+      new Result(
+        true,
+        "Adventure verified",
         result
       ),
     );

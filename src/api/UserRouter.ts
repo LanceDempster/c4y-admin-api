@@ -40,6 +40,29 @@ const upload = multer({
 
 const userRouter = Router();
 
+userRouter.get('/get-adventures', authUser, UserController.getAdventures);
+
+userRouter.post('/register-adventure', authUser, UserController.registerAdventure);
+
+userRouter.post(
+  '/submit-adventure',
+  authUser,
+  upload.single("verification_image"),
+  UserController.submitAdventure
+);
+
+userRouter.get(
+  '/get-adventure-verification',
+  authAdmin,
+  UserController.getAdventureVerification
+)
+
+userRouter.post(
+  '/admin-verify-adventure',
+  authAdmin,
+  UserController.adminVerifyAdventure
+)
+
 userRouter.get('/community-solo-leader-board', authUser, UserController.getSoloLeaderBoard);
 
 userRouter.get('/community-news', authUser, UserController.getCommunityNews);

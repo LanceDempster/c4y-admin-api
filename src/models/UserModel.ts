@@ -1362,7 +1362,12 @@ const fetchUserGames = async (userId: number): Promise<UserGame> => {
                      FROM user_event ue
                               JOIN event e ON ue.event_code = e.event_code
                      WHERE ue.user_id = user_solo_games.user_id
-                       AND e.end_date > NOW()) AS is_active_event
+                       AND e.end_date > NOW()) AS is_active_event,
+             EXISTS (SELECT 1
+                     FROM public.user_adventure ua
+                              JOIN adventure a ON ua.adventure_code = a.adventure_code
+                     WHERE ua.user_id = user_solo_games.user_id
+                       and ua.status is null)  AS is_active_adventure
       FROM user_solo_games
                LEFT JOIN cheater_punishment
                          ON user_solo_games.id = cheater_punishment.game_id AND cheater_punishment.state = 1
@@ -1373,7 +1378,7 @@ const fetchUserGames = async (userId: number): Promise<UserGame> => {
                LEFT JOIN punishments p5 ON punishment5id = p5.id
                LEFT JOIN game_verification_settings gvs ON user_solo_games.id = gvs.game_id
                LEFT JOIN user_pause_table upt ON user_solo_games.id = upt.game_id and upt.end_date is null
-               left join pause_game ON upt.pause_id = pause_game.id
+               LEFT JOIN pause_game ON upt.pause_id = pause_game.id
       WHERE user_solo_games.user_id = $1
         AND (user_solo_games.game_status = 'In Game' OR user_solo_games.game_status = 'paused')
   `, [userId]);
@@ -3419,6 +3424,26 @@ async function registerEvent(eventId: number, userId: number) {
   return true;
 }
 
+async function registerAdventure(adventureId: number, userId: number) {
+  const {rows: adventure} = await query("select * from adventure WHERE id = $1", [adventureId]);
+
+  const {rows: userAdventure} = await query("select * from user_adventure WHERE user_id = $1 AND status is null", [userId]);
+
+  if (userAdventure.length === 0) {
+    await query("INSERT INTO user_adventure (adventure_code, user_id, start_date) VALUES ($1, $2, $3)", [adventure[0].adventure_code, userId, new Date()])
+
+    await query(`
+                INSERT INTO dairy (user_id, created_date, title, entry, type)
+                VALUES ($1, $2, $3, $4, $5)`,
+      [userId, new Date(), `Registered for ${adventure[0]["adventure_name"]}`, "", "c"])
+
+  } else {
+    return false
+  }
+
+  return true;
+}
+
 
 function getCurrentOrFutureEventWithMembers(events: any[]) {
   let response = "";
@@ -3529,6 +3554,129 @@ async function getSoloLeaderBoard() {
   return rows;
 }
 
+async function checkIfAdventureIsTimedOut(adventure: any, userRegistered: any) {
+  const startDate = new Date();
+  const endDate = new Date(new Date(userRegistered["start_date"]).getTime() + adventure["max_time"] * 1000 * 60);
+
+  const diff = endDate.getTime() - startDate.getTime();
+
+  if (diff < 0) {
+    const currentDate = new Date()
+
+    await query("UPDATE user_adventure SET status = 'Timed Out', end_date = $1 WHERE user_id = $2 and adventure_code = $3", [currentDate, userRegistered["user_id"], adventure["adventure_code"]]);
+
+    await handleDeltaXp(userRegistered["user_id"], -adventure["remove_xp_points"], `Failed adventure ${adventure["adventure_name"]} because it's timed out`, currentDate, null)
+
+    await query(`INSERT INTO dairy
+                     (user_id, created_date, title, entry, type)
+                 VALUES ($1, $2, $3, $4,
+                         'c')`, [userRegistered["user_id"], currentDate, `Failed adventure`, `Failed adventure ${adventure["adventure_name"]} because it's timed out and lose ${adventure["remove_xp_points"]} XP`]);
+
+    return true
+  }
+  return false;
+}
+
+async function getAdventures(userId: number) {
+  const {rows} = await query("SELECT * FROM adventure order by adventure_code desc", [])
+
+  for (let i = 0; i < rows.length; i++) {
+    const {rows: registeredUsers} = await query("select * from user_adventure where adventure_code = $1", [rows[i]["adventure_code"]])
+    rows[i]["registeredUsers"] = registeredUsers;
+
+    const {rows: rules} = await query("select id, content from adventure_rule where adventure_code = $1", [rows[i]["adventure_code"]])
+    rows[i]["rules"] = rules;
+
+
+    const userRegistered = rows[i].registeredUsers.filter((registeredUser: any) => registeredUser.user_id === userId)[0]
+
+    if (userRegistered && userRegistered["status"] === null) {
+      if (await checkIfAdventureIsTimedOut(rows[i], userRegistered))
+        return getAdventures(userId)
+    }
+
+  }
+
+  return rows.map((x) => recursiveToCamel(x));
+}
+
+async function submitAdventure(userId: number, adventureId: number, image: string, success: boolean) {
+
+  const {rows: adventureRows} = await query("SELECT * FROM adventure WHERE id = $1", [adventureId]);
+  const adventure = adventureRows[0];
+
+  const currentDate = new Date();
+
+  if (success) {
+    await query("UPDATE user_adventure SET status = 'pending verification', verification_status = 'pending verification', end_date = $1, verification_image = $3 WHERE adventure_code = $2", [currentDate, adventure["adventure_code"], image]);
+
+    await query(`INSERT INTO dairy
+                     (user_id, created_date, title, entry, type)
+                 VALUES ($1, $2, $3, $4,
+                         'c')`, [userId, currentDate, `Submitted adventure`, `Submitted adventure ${adventure["adventure_name"]} for verification`]);
+  } else {
+
+    await query("UPDATE user_adventure SET status = 'fail', end_date = $1 WHERE adventure_code = $2", [currentDate, adventure["adventure_code"],]);
+
+    await handleDeltaXp(userId, -adventure["remove_xp_points"], `Failed adventure ${adventure["adventure_name"]}`, currentDate, null)
+
+    await query(`INSERT INTO dairy
+                     (user_id, created_date, title, entry, type)
+                 VALUES ($1, $2, $3, $4,
+                         'c')`, [userId, currentDate, `Failed adventure`, `Failed adventure ${adventure["adventure_name"]} and lose ${adventure["remove_xp_points"]} XP`]);
+  }
+}
+
+async function getAdventureVerification() {
+  const {rows} = await query("SELECT user_adventure.*, a.adventure_name, a.adventure_description FROM user_adventure left join adventure a on user_adventure.adventure_code = a.adventure_code where verification_status = 'pending verification'", [])
+
+  return rows;
+}
+
+async function verifyAdventure(userAdventureId: number, accepted: boolean) {
+  const {rows} = await query("SELECT user_adventure.*, a.xp_points, a.remove_xp_points FROM user_adventure left join adventure a on user_adventure.adventure_code = a.adventure_code WHERE user_adventure.id = $1", [userAdventureId]);
+
+  const currentDate = new Date();
+
+  if (accepted) {
+    await query(`
+        UPDATE user_adventure
+        SET status              = $2,
+            verification_status = $3
+        WHERE id = $1`, [userAdventureId, "success", "verified"])
+
+    await handleDeltaXp(rows[0]["user_id"], rows[0]["xp_points"], "Adventure verified", currentDate, null);
+
+    await query(`INSERT INTO dairy (user_id, created_date, title, entry, type)
+                 VALUES ($1, $2, $3, $4, 'c')`,
+      [
+        rows[0]["user_id"],
+        currentDate,
+        "Adventure verified",
+        `Adventure verified by our admins with resulting in success and gaining ${rows[0]["xp_points"]} XP`
+      ]);
+  } else {
+    await query(`
+        UPDATE user_adventure
+        SET status              = $2,
+            verification_status = $3
+        WHERE id = $1`, [userAdventureId, "fail", "verified"])
+
+    await handleDeltaXp(rows[0]["user_id"], -rows[0]["remove_xp_points"], "Adventure verified failed", currentDate, null);
+
+    await query(`INSERT INTO dairy (user_id, created_date, title, entry, type)
+                 VALUES ($1, $2, $3, $4, 'c')`,
+      [
+        rows[0]["user_id"],
+        currentDate,
+        "Adventure verified failed",
+        `Adventure verified failed by our admins with resulting in failure and losing ${rows[0]["xp_points"]} XP`
+      ]
+    );
+  }
+
+}
+
 const UserModel = {
   create,
   getById,
@@ -3604,7 +3752,12 @@ const UserModel = {
   registerEvent,
   getMedals,
   getCommunityNews,
-  getSoloLeaderBoard
+  getSoloLeaderBoard,
+  getAdventures,
+  registerAdventure,
+  submitAdventure,
+  getAdventureVerification,
+  verifyAdventure
 };
 
 export default UserModel;
