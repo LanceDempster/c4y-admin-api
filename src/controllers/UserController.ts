@@ -1700,21 +1700,7 @@ export const getCommunityImagesForVerification: RequestHandler = async (
   next,
 ) => {
   try {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
-
-    if (!token) {
-      return next(new NotAuthorized("Unauthorized"));
-    }
-
-    const decoded: Token = verify(token, process.env.SECRET as string) as any;
-
-    const user = await UserModel.getById(decoded.id);
-
-    if (!user || decoded.role !== "USER") {
-      return next(new NotAuthorized("Invalid token"));
-    }
-
-    const result = await UserModel.getCommunityImagesForVerification(user.id);
+    const result = await UserModel.getCommunityImagesForVerification();
 
     return res
       .status(200)
@@ -1726,20 +1712,6 @@ export const getCommunityImagesForVerification: RequestHandler = async (
 
 export const verifyCommunityImage: RequestHandler = async (req, res, next) => {
   try {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
-
-    if (!token) {
-      return next(new NotAuthorized("Unauthorized"));
-    }
-
-    const decoded: Token = verify(token, process.env.SECRET as string) as any;
-
-    const user = await UserModel.getById(decoded.id);
-
-    if (!user || decoded.role !== "USER") {
-      return next(new NotAuthorized("Invalid token"));
-    }
-
     const {imageId, isValied} = req.body;
 
     if (typeof imageId !== "number" || typeof isValied !== "boolean") {

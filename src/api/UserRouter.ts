@@ -101,13 +101,13 @@ userRouter.post(
 
 userRouter.get(
   "/get-community-images-for-verification",
-  authUser,
+  authAdmin,
   UserController.getCommunityImagesForVerification,
 );
 
 userRouter.post(
   "/verify-community-image",
-  authUser,
+  authAdmin,
   UserController.verifyCommunityImage,
 );
 

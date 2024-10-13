@@ -2717,20 +2717,15 @@ const uploadVerificationImage = async (
   }
 };
 
-const getCommunityImagesForVerification = async (
-  userId: number,
-  limit: number = 1,
-): Promise<Array<{ id: number; imageUrl: string; code: string }>> => {
+const getCommunityImagesForVerification = async (): Promise<Array<{ id: number; imageUrl: string; code: string }>> => {
   const {rows} = await query(
     `SELECT gvi.id, gvi.image_url, gva.code
      FROM game_verification_image gvi
               JOIN user_solo_games usg ON gvi.game_id = usg.id
               JOIN game_verification_attempt gva ON gvi.attempt_id = gva.id
-     WHERE usg.user_id != $1
-       AND gvi.verified IS NULL
-     ORDER BY RANDOM()
-     LIMIT $2`,
-    [userId, limit],
+     WHERE gvi.verified IS NULL
+     ORDER BY RANDOM()`,
+    [],
   );
 
   const images = rows.map((row) => ({
